@@ -27,13 +27,6 @@
             <version>${javafx.version}</version>
         </dependency>
 
-        <!-- JavaFX FXML -->
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-fxml</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
-
         <!-- SQLite -->
         <dependency>
             <groupId>org.xerial</groupId>
