@@ -1,6 +1,10 @@
 package com.shell.view;
 
 import com.shell.model.FileSystemItem;
+import com.shell.strategy.sorting.*;
+
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.geometry.Insets;
@@ -15,6 +19,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 
+import com.shell.icons.FileIconProvider;
+
 public class FilePanelView extends VBox {
 
     private static final DateTimeFormatter DATE_FORMATTER =
@@ -26,6 +32,16 @@ public class FilePanelView extends VBox {
     private final Button refreshButton = new Button("↻");
 
     private final TableView<FileSystemItem> fileTable = new TableView<>();
+
+    private final TableColumn<FileSystemItem, String> nameColumn =
+            new TableColumn<>("Назва");
+    private final TableColumn<FileSystemItem, String> typeColumn =
+            new TableColumn<>("Тип");
+    private final TableColumn<FileSystemItem, String> sizeColumn =
+            new TableColumn<>("Розмір");
+    private final TableColumn<FileSystemItem, String> dateColumn =
+            new TableColumn<>("Дата зміни");
+
     private final Label statusLabel = new Label("Об'єктів: 0");
 
     public FilePanelView() {
@@ -76,18 +92,42 @@ public class FilePanelView extends VBox {
         );
     }
 
-    private void configureTable() {
-        TableColumn<FileSystemItem, String> nameColumn =
-                new TableColumn<>("Назва");
 
+    private void configureTable() {
         nameColumn.setCellValueFactory(cell ->
                 new ReadOnlyStringWrapper(
                         cell.getValue().getName()
                 )
         );
 
-        TableColumn<FileSystemItem, String> typeColumn =
-                new TableColumn<>("Тип");
+        nameColumn.setCellFactory(column ->
+                new TableCell<FileSystemItem, String>() {
+
+                    @Override
+                    protected void updateItem(
+                            String name,
+                            boolean empty
+                    ) {
+                        super.updateItem(name, empty);
+
+                        FileSystemItem item =
+                                getTableRow() == null
+                                        ? null
+                                        : getTableRow().getItem();
+
+                        if (empty || name == null || item == null) {
+                            setText(null);
+                            setGraphic(null);
+                        } else {
+                            setText(name);
+                            setGraphic(
+                                    FileIconProvider.createIcon(item)
+                            );
+                            setGraphicTextGap(7);
+                        }
+                    }
+                }
+        );
 
         typeColumn.setCellValueFactory(cell ->
                 new ReadOnlyStringWrapper(
@@ -95,23 +135,17 @@ public class FilePanelView extends VBox {
                 )
         );
 
-        TableColumn<FileSystemItem, String> sizeColumn =
-                new TableColumn<>("Розмір");
-
         sizeColumn.setCellValueFactory(cell ->
                 new ReadOnlyStringWrapper(
                         formatSize(cell.getValue().getSize())
                 )
         );
 
-        TableColumn<FileSystemItem, String> dateColumn =
-                new TableColumn<>("Дата зміни");
-
         dateColumn.setCellValueFactory(cell ->
                 new ReadOnlyStringWrapper(
-                        cell.getValue()
-                                .getLastModified()
-                                .format(DATE_FORMATTER)
+                        DATE_FORMATTER.format(
+                                cell.getValue().getLastModified()
+                        )
                 )
         );
 
@@ -120,11 +154,10 @@ public class FilePanelView extends VBox {
         sizeColumn.setPrefWidth(90);
         dateColumn.setPrefWidth(150);
 
-        // Сортування буде реалізовано через патерн Strategy.
-        nameColumn.setSortable(false);
-        typeColumn.setSortable(false);
-        sizeColumn.setSortable(false);
-        dateColumn.setSortable(false);
+        nameColumn.setSortable(true);
+        typeColumn.setSortable(true);
+        sizeColumn.setSortable(true);
+        dateColumn.setSortable(true);
 
         fileTable.getColumns().setAll(
                 List.of(
@@ -139,8 +172,9 @@ public class FilePanelView extends VBox {
                 TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN
         );
 
-        fileTable.getSelectionModel()
-                .setSelectionMode(SelectionMode.MULTIPLE);
+        fileTable.getSelectionModel().setSelectionMode(
+                SelectionMode.MULTIPLE
+        );
 
         fileTable.setPlaceholder(
                 new Label("Каталог порожній")
@@ -229,5 +263,21 @@ public class FilePanelView extends VBox {
 
     public TableView<FileSystemItem> getFileTable() {
         return fileTable;
+    }
+
+    public TableColumn<FileSystemItem, String> getNameColumn() {
+        return nameColumn;
+    }
+
+    public TableColumn<FileSystemItem, String> getTypeColumn() {
+        return typeColumn;
+    }
+
+    public TableColumn<FileSystemItem, String> getSizeColumn() {
+        return sizeColumn;
+    }
+
+    public TableColumn<FileSystemItem, String> getDateColumn() {
+        return dateColumn;
     }
 }

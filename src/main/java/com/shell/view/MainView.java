@@ -1,4 +1,3 @@
-
 package com.shell.view;
 
 import javafx.geometry.Orientation;

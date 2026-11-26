@@ -1,0 +1,296 @@
+/* Загальне оформлення */
+.root {
+    -fx-font-family: "Segoe UI";
+    -fx-font-size: 13px;
+    -fx-background-color: #efedf7;
+}
+
+.main-view {
+    -fx-background-color: #efedf7;
+}
+
+/* Головне меню */
+.menu-bar {
+    -fx-background-color: #fcfbff;
+    -fx-padding: 3px 8px;
+    -fx-border-color: #dcd5ea;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.menu-bar .menu {
+    -fx-padding: 5px 10px;
+}
+
+.menu-bar .menu:hover,
+.menu-bar .menu:showing,
+.menu-item:focused {
+    -fx-background-color: #e3d9f5;
+}
+
+.menu-bar .label,
+.menu-item .label {
+    -fx-text-fill: #433653;
+}
+
+.context-menu {
+    -fx-background-color: #fcfbff;
+    -fx-border-color: #ccc3e0;
+}
+
+/* Панель інструментів */
+.tool-bar {
+    -fx-background-color: #f5f2fa;
+    -fx-padding: 8px 10px;
+    -fx-spacing: 7px;
+    -fx-border-color: #dcd5ea;
+    -fx-border-width: 0 0 1px 0;
+}
+
+/* Кнопки */
+.button {
+    -fx-background-color: #fcfbff;
+    -fx-text-fill: #433653;
+
+    -fx-border-color: #ccc3e0;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+
+    -fx-padding: 7px 12px;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: #eee7f8;
+    -fx-border-color: #b69acd;
+}
+
+.button:pressed {
+    -fx-background-color: #e3d9f5;
+}
+
+.button:focused {
+    -fx-border-color: #8971b8;
+}
+
+.button:disabled {
+    -fx-opacity: 0.5;
+}
+
+/* Файлові панелі */
+.file-panel {
+    -fx-background-color: #fcfbff;
+
+    -fx-border-color: #ccc3e0;
+    -fx-border-width: 2px;
+    -fx-border-radius: 6px;
+
+    -fx-background-radius: 6px;
+}
+
+/* Активна файлова панель */
+.file-panel:active {
+    -fx-border-color: #8971b8;
+}
+
+/* Розділювач між панелями */
+.split-pane {
+    -fx-background-color: #efedf7;
+    -fx-padding: 8px;
+}
+
+.split-pane-divider {
+    -fx-background-color: #efedf7;
+    -fx-padding: 0 3px;
+}
+
+/* Поле введення шляху */
+.text-field {
+    -fx-background-color: #fcfbff;
+    -fx-text-fill: #433653;
+    -fx-prompt-text-fill: #8e819f;
+
+    -fx-border-color: #ccc3e0;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+
+    -fx-highlight-fill: #d8c8ef;
+    -fx-highlight-text-fill: #433653;
+
+    -fx-padding: 7px 9px;
+}
+
+.text-field:focused {
+    -fx-border-color: #8971b8;
+}
+
+/* Список дисків */
+.combo-box {
+    -fx-background-color: #fcfbff;
+    -fx-border-color: #ccc3e0;
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    -fx-cursor: hand;
+}
+
+.combo-box:focused {
+    -fx-border-color: #8971b8;
+}
+
+.combo-box .arrow {
+    -fx-background-color: #8971b8;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: #433653;
+    -fx-padding: 6px 8px;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: #fcfbff;
+    -fx-border-color: #ccc3e0;
+}
+
+.combo-box-popup .list-cell {
+    -fx-background-color: #fcfbff;
+    -fx-text-fill: #433653;
+}
+
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: #eee7f8;
+}
+
+.combo-box-popup .list-cell:selected {
+    -fx-background-color: #e3d9f5;
+}
+
+/* Таблиця файлів */
+.table-view {
+    -fx-background-color: #fcfbff;
+
+    -fx-border-color: #dcd5ea;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+
+    -fx-table-cell-border-color: transparent;
+    -fx-fixed-cell-size: 29px;
+
+    -fx-selection-bar: #e3d9f5;
+    -fx-selection-bar-non-focused: #e9e3f0;
+}
+
+/* Заголовки стовпців */
+.table-view .column-header-background {
+    -fx-background-color: #e5dff1;
+}
+
+.table-view .column-header,
+.table-view .filler {
+    -fx-background-color: transparent;
+    -fx-border-color: #d5cce6;
+    -fx-border-width: 0 1px 1px 0;
+    -fx-size: 34px;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #514164;
+    -fx-font-weight: bold;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 0 6px;
+}
+
+/* Сортування стовпців */
+.table-view .column-header .arrow {
+    -fx-background-color: #8971b8;
+}
+
+.table-view .column-header:hover {
+    -fx-background-color: #dcd2ed;
+    -fx-cursor: hand;
+}
+
+/* Рядки таблиці */
+.table-row-cell {
+    -fx-background-color: #fcfbff;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: #f5f2fa;
+}
+
+.table-row-cell:filled:hover {
+    -fx-background-color: #eee7f8;
+}
+
+.table-row-cell:filled:selected {
+    -fx-background-color: #e9e3f0;
+}
+
+.file-panel:active .table-row-cell:filled:selected {
+    -fx-background-color: #e3d9f5;
+}
+
+.table-cell {
+    -fx-text-fill: #433653;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 4px 7px;
+}
+
+.table-row-cell:selected .table-cell {
+    -fx-text-fill: #433653;
+}
+
+.table-view .placeholder .label {
+    -fx-text-fill: #786b8c;
+}
+
+/* Рядок стану файлової панелі */
+.panel-status {
+    -fx-text-fill: #786b8c;
+    -fx-font-size: 12px;
+    -fx-padding: 3px 2px;
+}
+
+/* Головний рядок стану */
+.main-status {
+    -fx-background-color: #e5dff1;
+    -fx-text-fill: #514164;
+
+    -fx-font-size: 12px;
+    -fx-padding: 6px 10px;
+
+    -fx-border-color: #ccc3e0;
+    -fx-border-width: 1px 0 0 0;
+}
+
+/* Смуги прокручування */
+.scroll-bar {
+    -fx-background-color: #f5f2fa;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #ccc3e0;
+    -fx-background-radius: 5px;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #b69acd;
+}
+
+/* Розділювачі */
+.separator .line {
+    -fx-border-color: #d5cce6;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.separator:vertical .line {
+    -fx-border-width: 0 1px 0 0;
+}
+
+/* Підказки */
+.tooltip {
+    -fx-background-color: #514164;
+    -fx-text-fill: #fcfbff;
+    -fx-font-size: 12px;
+    -fx-background-radius: 5px;
+}

@@ -9,6 +9,8 @@ import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
+import java.util.Objects;
+
 public class Main extends Application {
 
     @Override
@@ -26,6 +28,13 @@ public class Main extends Application {
                 new MainController(mainView, navigationService);
 
         Scene scene = new Scene(mainView, 1200, 750);
+
+        scene.getStylesheets().add(
+                Objects.requireNonNull(
+                        getClass().getResource("/css/styles.css"),
+                        "Не знайдено файл стилів styles.css."
+                ).toExternalForm()
+        );
 
         stage.setTitle("Shell — файловий менеджер");
         stage.setMinWidth(900);

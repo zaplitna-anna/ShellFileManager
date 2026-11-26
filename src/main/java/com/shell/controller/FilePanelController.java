@@ -3,7 +3,10 @@ package com.shell.controller;
 import com.shell.model.FileSystemItem;
 import com.shell.service.NavigationService;
 import com.shell.view.FilePanelView;
+import com.shell.strategy.sorting.*;
 
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.Alert;
 import javafx.scene.control.TableRow;
 import javafx.scene.input.MouseButton;
@@ -15,11 +18,15 @@ import java.util.List;
 import java.util.Objects;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.NoSuchFileException;
+import java.util.ArrayList;
 
 public class FilePanelController {
 
     private final FilePanelView view;
     private final NavigationService navigationService;
+
+    private final FileSortingContext sortingContext =
+            new FileSortingContext();
 
     private Path currentDirectory;
     private boolean updatingDriveSelection;
@@ -39,6 +46,7 @@ public class FilePanelController {
         );
 
         configureEventHandlers();
+        configureSorting();
     }
 
     public void initialize() {
@@ -50,7 +58,6 @@ public class FilePanelController {
     }
 
     private void configureEventHandlers() {
-
         view.getParentButton().setOnAction(event ->
                 navigateToParent()
         );
@@ -91,11 +98,70 @@ public class FilePanelController {
                     }
                 }
             });
-
             return row;
         });
     }
 
+
+    private void configureSorting() {
+        TableView<FileSystemItem> table = view.getFileTable();
+
+        table.setSortPolicy(currentTable -> {
+
+            if (currentTable.getSortOrder().isEmpty()) {
+                return true;
+            }
+
+            TableColumn<FileSystemItem, ?> column =
+                    currentTable.getSortOrder().get(0);
+
+            if (column == view.getNameColumn()) {
+                sortingContext.setStrategy(
+                        new NameSortingStrategy()
+                );
+
+            } else if (column == view.getTypeColumn()) {
+                sortingContext.setStrategy(
+                        new TypeSortingStrategy()
+                );
+
+            } else if (column == view.getSizeColumn()) {
+                sortingContext.setStrategy(
+                        new SizeSortingStrategy()
+                );
+
+            } else if (column == view.getDateColumn()) {
+                sortingContext.setStrategy(
+                        new DateSortingStrategy()
+                );
+
+            } else {
+                return false;
+            }
+
+            sortingContext.setAscending(
+                    column.getSortType()
+                            == TableColumn.SortType.ASCENDING
+            );
+
+            List<FileSystemItem> sortedItems =
+                    sortingContext.sort(
+                            new ArrayList<>(currentTable.getItems())
+                    );
+
+            currentTable.getItems().setAll(sortedItems);
+
+            return true;
+        });
+
+        view.getNameColumn().setSortType(
+                TableColumn.SortType.ASCENDING
+        );
+
+        table.getSortOrder().setAll(
+                List.of(view.getNameColumn())
+        );
+    }
 
     public void navigateTo(Path directory) {
         try {
@@ -111,11 +177,13 @@ public class FilePanelController {
                     navigationService.getDirectoryContents(
                             normalizedPath
                     );
-            
+
             currentDirectory = normalizedPath;
 
             view.setCurrentPath(currentDirectory);
-            view.setItems(items);
+            view.setItems(
+                    sortingContext.sort(items)
+            );
 
             updateNavigationControls();
 
