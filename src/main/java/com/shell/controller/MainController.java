@@ -18,6 +18,8 @@ import javafx.stage.Window;
 
 import java.util.Objects;
 
+import com.shell.service.SearchService;
+
 public class MainController {
     private static final PseudoClass ACTIVE_PANEL =
             PseudoClass.getPseudoClass("active");
@@ -27,6 +29,7 @@ public class MainController {
     private final FilePanelController rightController;
     private final BackgroundOperationExecutor executor;
     private final FileOperationController fileOperationController;
+    private final SearchController searchController;
     private FilePanelController activeController;
 
     private final ChangeListener<Node> focusListener =
@@ -37,7 +40,8 @@ public class MainController {
             MainView view,
             NavigationService navigationService,
             FileOperationService fileOperationService,
-            FileSystemEventPublisher eventPublisher
+            FileSystemEventPublisher eventPublisher,
+            SearchService searchService
     ) {
         this.view = Objects.requireNonNull(
                 view, "Головне представлення не може бути null."
@@ -68,6 +72,11 @@ public class MainController {
                 this::getPassiveController,
                 this::getOwner
         );
+        searchController = new SearchController(
+                searchService,
+                this::getActiveController,
+                this::getOwner
+        );
 
         leftController.setOnFileOpen(fileOperationController::handleOpen);
         rightController.setOnFileOpen(fileOperationController::handleOpen);
@@ -78,6 +87,7 @@ public class MainController {
         configureMenuEvents();
         configureKeyboardEvents();
         configureOperationEvents();
+        configureSearchEvents();
     }
 
     public void initialize() {
@@ -204,6 +214,21 @@ public class MainController {
         view.getDeleteMenuItem().setOnAction(
                 event -> fileOperationController.handleDelete()
         );
+    }
+
+    private void configureSearchEvents() {
+
+        view.getSearchButton().setOnAction(event -> {
+            if (!isOperationRunning()) {
+                searchController.handleSearch();
+            }
+        });
+
+        view.getSearchMenuItem().setOnAction(event -> {
+            if (!isOperationRunning()) {
+                searchController.handleSearch();
+            }
+        });
     }
 
     private void configureKeyboardEvents() {

@@ -249,6 +249,57 @@ public class FilePanelController
         }
     }
 
+
+    public void navigateToItem(Path itemPath) {
+
+        if (itemPath == null) {
+            return;
+        }
+
+        Path normalizedPath =
+                itemPath.toAbsolutePath().normalize();
+
+        Path parent = normalizedPath.getParent();
+
+        if (parent == null) {
+            return;
+        }
+
+        navigateTo(parent);
+
+        if (!parent.equals(currentDirectory)) {
+            return;
+        }
+
+        TableView<FileSystemItem> table =
+                view.getFileTable();
+
+        table.getSelectionModel().clearSelection();
+
+        for (int index = 0;
+             index < table.getItems().size();
+             index++) {
+
+            FileSystemItem item =
+                    table.getItems().get(index);
+
+            if (item.getPath().equals(normalizedPath)) {
+                table.getSelectionModel().select(index);
+                table.getFocusModel().focus(index);
+                table.scrollTo(index);
+                table.requestFocus();
+                return;
+            }
+        }
+
+        showError(
+                "Перехід до об'єкта",
+                "Знайдений об'єкт більше не доступний: "
+                        + normalizedPath
+        );
+    }
+
+
     public void navigateToParent() {
         if (currentDirectory == null) {
             return;

@@ -17,6 +17,9 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
 
+import com.shell.operation.CancellationToken;
+import com.shell.strategy.search.SearchStrategy;
+
 public class FileSystemFacade {
 
     private final FileSystemReader reader;
@@ -41,6 +44,22 @@ public class FileSystemFacade {
             Path directory
     ) throws IOException {
         return reader.listDirectory(directory);
+    }
+
+
+    public List<FileSystemItem> search(
+            Path directory,
+            String query,
+            SearchStrategy strategy,
+            CancellationToken cancellationToken
+    ) throws IOException {
+
+        return reader.search(
+                directory,
+                query,
+                strategy,
+                cancellationToken
+        );
     }
 
     public FileSystemItem getFileInfo(Path path)

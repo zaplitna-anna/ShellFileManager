@@ -14,6 +14,8 @@ import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
+import com.shell.service.SearchService;
+
 public class Main extends Application {
 
     @Override
@@ -38,6 +40,9 @@ public class Main extends Application {
                         eventPublisher
                 );
 
+        SearchService searchService =
+                new SearchService(fileSystemFacade);
+
         MainView mainView = new MainView();
 
         MainController mainController =
@@ -45,7 +50,8 @@ public class Main extends Application {
                         mainView,
                         navigationService,
                         fileOperationService,
-                        eventPublisher
+                        eventPublisher,
+                        searchService
                 );
 
 

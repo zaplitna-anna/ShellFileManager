@@ -18,6 +18,14 @@ import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.shell.operation.CancellationToken;
+import com.shell.strategy.search.SearchStrategy;
+
+import java.nio.file.AccessDeniedException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.SimpleFileVisitor;
+import java.util.Objects;
+
 public class FileSystemReader {
 
     private static final Logger LOGGER =
@@ -70,6 +78,171 @@ public class FileSystemReader {
         return items;
     }
 
+
+    public List<FileSystemItem> search(
+            Path directory,
+            String query,
+            SearchStrategy strategy,
+            CancellationToken cancellationToken
+    ) throws IOException {
+
+        Objects.requireNonNull(
+                strategy,
+                "Стратегія пошуку не може бути null."
+        );
+
+        Objects.requireNonNull(
+                cancellationToken,
+                "Токен скасування не може бути null."
+        );
+
+        cancellationToken.checkCancellation();
+
+        if (query == null || query.isBlank()) {
+            throw new IOException(
+                    "Пошуковий запит не може бути порожнім."
+            );
+        }
+
+        if (directory == null || !Files.isDirectory(directory)) {
+            throw new IOException(
+                    "Каталог пошуку не існує "
+                            + "або не є каталогом."
+            );
+        }
+
+        Path root = directory.toRealPath();
+
+        if (!Files.isReadable(root)) {
+            throw new AccessDeniedException(
+                    root.toString()
+            );
+        }
+
+        List<FileSystemItem> results =
+                new ArrayList<>();
+
+        Files.walkFileTree(
+                root,
+                new SimpleFileVisitor<Path>() {
+
+                    @Override
+                    public FileVisitResult preVisitDirectory(
+                            Path dir,
+                            BasicFileAttributes attributes
+                    ) throws IOException {
+
+                        cancellationToken.checkCancellation();
+
+                        if (!dir.equals(root)) {
+
+                            try {
+                                if (attributes.isSymbolicLink()
+                                        || attributes.isOther()
+                                        || !dir.toRealPath().equals(dir)
+                                        || !Files.isReadable(dir)) {
+
+                                    return FileVisitResult.SKIP_SUBTREE;
+                                }
+
+                            } catch (IOException exception) {
+
+                                LOGGER.log(
+                                        Level.WARNING,
+                                        "Пропущено недоступний каталог: "
+                                                + dir,
+                                        exception
+                                );
+
+                                return FileVisitResult.SKIP_SUBTREE;
+                            }
+
+                            addSearchResult(
+                                    dir,
+                                    query,
+                                    strategy,
+                                    results
+                            );
+                        }
+
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult visitFile(
+                            Path file,
+                            BasicFileAttributes attributes
+                    ) {
+
+                        cancellationToken.checkCancellation();
+
+                        if (attributes.isRegularFile()) {
+                            addSearchResult(
+                                    file,
+                                    query,
+                                    strategy,
+                                    results
+                            );
+                        }
+
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult visitFileFailed(
+                            Path file,
+                            IOException exception
+                    ) throws IOException {
+
+                        cancellationToken.checkCancellation();
+
+                        if (file.equals(root)) {
+                            throw exception;
+                        }
+
+                        LOGGER.log(
+                                Level.WARNING,
+                                "Пропущено недоступний об'єкт: "
+                                        + file,
+                                exception
+                        );
+
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult postVisitDirectory(
+                            Path dir,
+                            IOException exception
+                    ) throws IOException {
+
+                        cancellationToken.checkCancellation();
+
+                        if (exception != null) {
+
+                            if (dir.equals(root)) {
+                                throw exception;
+                            }
+
+                            LOGGER.log(
+                                    Level.WARNING,
+                                    "Не вдалося повністю переглянути "
+                                            + "каталог: " + dir,
+                                    exception
+                            );
+                        }
+
+                        return FileVisitResult.CONTINUE;
+                    }
+                }
+        );
+
+        cancellationToken.checkCancellation();
+
+        return results;
+    }
+
+
     public FileSystemItem getFileInfo(Path path)
             throws IOException {
 
@@ -115,6 +288,34 @@ public class FileSystemReader {
                 size,
                 lastModified
         );
+    }
+
+
+    private void addSearchResult(
+            Path path,
+            String query,
+            SearchStrategy strategy,
+            List<FileSystemItem> results
+    ) {
+
+        String name = path.getFileName().toString();
+
+        if (!strategy.matches(name, query)) {
+            return;
+        }
+
+        try {
+            results.add(getFileInfo(path));
+
+        } catch (IOException exception) {
+
+            LOGGER.log(
+                    Level.WARNING,
+                    "Не вдалося отримати інформацію "
+                            + "про знайдений об'єкт: " + path,
+                    exception
+            );
+        }
     }
 
     private String extractExtension(String name) {
