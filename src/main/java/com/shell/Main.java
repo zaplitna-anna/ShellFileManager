@@ -15,11 +15,59 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 import com.shell.service.SearchService;
+import com.shell.database.DatabaseManager;
+import com.shell.view.dialog.AlertDialogs;
+
+import javafx.scene.control.Alert;
+
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import com.shell.database.SearchHistoryRepository;
 
 public class Main extends Application {
+    private static final Logger LOGGER =
+            Logger.getLogger(Main.class.getName());
 
     @Override
     public void start(Stage stage) {
+        DatabaseManager databaseManager =
+                new DatabaseManager();
+
+        try {
+            databaseManager.initialize();
+
+            LOGGER.log(
+                    Level.INFO,
+                    "Базу даних успішно ініціалізовано: {0}",
+                    databaseManager.getDatabasePath()
+            );
+
+        } catch (IOException | SQLException | SecurityException exception) {
+
+            LOGGER.log(
+                    Level.SEVERE,
+                    "Не вдалося ініціалізувати базу даних.",
+                    exception
+            );
+
+            AlertDialogs alerts =
+                    new AlertDialogs(() -> null);
+
+            alerts.showAlert(
+                    Alert.AlertType.ERROR,
+                    "Помилка",
+                    "Не вдалося ініціалізувати базу даних",
+                    "Запуск програми неможливий. "
+                            + "Перевірте доступність "
+                            + "каталогу бази даних."
+            );
+
+            return;
+        }
+
 
         FileSystemFacade fileSystemFacade =
                 new FileSystemFacade();
@@ -40,8 +88,16 @@ public class Main extends Application {
                         eventPublisher
                 );
 
+        SearchHistoryRepository searchHistoryRepository =
+                new SearchHistoryRepository(
+                        databaseManager
+                );
+
         SearchService searchService =
-                new SearchService(fileSystemFacade);
+                new SearchService(
+                        fileSystemFacade,
+                        searchHistoryRepository
+                );
 
         MainView mainView = new MainView();
 

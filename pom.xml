@@ -59,6 +59,12 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>com.shell.Main</mainClass>
+                    <options>
+                        <option>-Dfile.encoding=UTF-8</option>
+                        <option>-Dstdout.encoding=UTF-8</option>
+                        <option>-Dstderr.encoding=UTF-8</option>
+                        <option>-Djava.util.logging.ConsoleHandler.encoding=UTF-8</option>
+                    </options>
                 </configuration>
             </plugin>
 

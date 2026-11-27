@@ -288,6 +288,18 @@ public class SearchDialog {
                 : SearchMode.PARTIAL;
     }
 
+
+    public void setQuery(String query) {
+        queryField.setText(query);
+    }
+
+    public void setSearchMode(SearchMode mode) {
+        exactMatchCheckBox.setSelected(
+                mode == SearchMode.EXACT
+        );
+    }
+
+
     public FileSystemItem getSelectedItem() {
         return resultsTable.getSelectionModel()
                 .getSelectedItem();

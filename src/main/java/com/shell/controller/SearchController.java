@@ -7,6 +7,10 @@ import com.shell.operation.CancellationToken;
 import com.shell.service.SearchService;
 import com.shell.view.dialog.AlertDialogs;
 import com.shell.view.dialog.SearchDialog;
+import com.shell.model.SearchHistoryEntry;
+import com.shell.view.dialog.SearchHistoryDialog;
+
+import java.sql.SQLException;
 
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
@@ -62,12 +66,14 @@ public class SearchController {
         );
     }
 
+
     public void handleSearch() {
 
         FilePanelController panel =
                 activeControllerSupplier.get();
 
-        Path directory = panel.getCurrentDirectory();
+        Path directory =
+                panel.getCurrentDirectory();
 
         if (directory == null) {
             showError(
@@ -78,10 +84,74 @@ public class SearchController {
             return;
         }
 
+        showSearchDialog(
+                panel,
+                directory,
+                "",
+                SearchMode.PARTIAL
+        );
+    }
+
+
+    public void handleSearchHistory() {
+
+        try {
+            List<SearchHistoryEntry> history =
+                    searchService.getSearchHistory();
+
+            SearchHistoryDialog historyDialog =
+                    new SearchHistoryDialog(
+                            ownerSupplier.get(),
+                            history
+                    );
+
+            SearchHistoryEntry entry =
+                    historyDialog.showAndWait();
+
+            if (entry == null) {
+                return;
+            }
+
+            FilePanelController panel =
+                    activeControllerSupplier.get();
+
+            showSearchDialog(
+                    panel,
+                    entry.directory(),
+                    entry.query(),
+                    entry.searchMode()
+            );
+
+        } catch (SQLException exception) {
+
+            LOGGER.log(
+                    Level.WARNING,
+                    "Не вдалося отримати історію пошуку.",
+                    exception
+            );
+
+            showError(
+                    ownerSupplier.get(),
+                    "Не вдалося завантажити історію пошуку."
+            );
+        }
+    }
+
+
+    private void showSearchDialog(
+            FilePanelController panel,
+            Path directory,
+            String query,
+            SearchMode mode
+    ) {
+
         SearchDialog dialog = new SearchDialog(
                 ownerSupplier.get(),
                 directory
         );
+
+        dialog.setQuery(query);
+        dialog.setSearchMode(mode);
 
         dialog.getSearchButton().setOnAction(
                 event -> startSearch(
@@ -108,6 +178,7 @@ public class SearchController {
                             new TableRow<>();
 
                     row.setOnMouseClicked(event -> {
+
                         if (event.getButton()
                                 == MouseButton.PRIMARY
                                 && event.getClickCount() == 2
@@ -131,6 +202,7 @@ public class SearchController {
 
         dialog.showAndWait();
     }
+
 
     private void startSearch(
             SearchDialog dialog,

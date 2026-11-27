@@ -216,6 +216,7 @@ public class MainController {
         );
     }
 
+
     private void configureSearchEvents() {
 
         view.getSearchButton().setOnAction(event -> {
@@ -229,7 +230,14 @@ public class MainController {
                 searchController.handleSearch();
             }
         });
+
+        view.getSearchHistoryMenuItem().setOnAction(event -> {
+            if (!isOperationRunning()) {
+                searchController.handleSearchHistory();
+            }
+        });
     }
+
 
     private void configureKeyboardEvents() {
         view.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
