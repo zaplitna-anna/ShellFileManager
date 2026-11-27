@@ -19,6 +19,10 @@ import java.util.Objects;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
+import java.util.function.Consumer;
+
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 
 public class FilePanelController {
 
@@ -29,6 +33,8 @@ public class FilePanelController {
             new FileSortingContext();
 
     private Path currentDirectory;
+    private Consumer<FileSystemItem> onFileOpen = item -> {
+    };
     private boolean updatingDriveSelection;
 
     public FilePanelController(
@@ -83,7 +89,8 @@ public class FilePanelController {
             }
         });
 
-        view.getFileTable().setRowFactory(table -> {
+
+        view.getFileTable().setRowFactory(tableView -> {
             TableRow<FileSystemItem> row = new TableRow<>();
 
             row.setOnMouseClicked(event -> {
@@ -91,15 +98,34 @@ public class FilePanelController {
                         && event.getClickCount() == 2
                         && !row.isEmpty()) {
 
-                    FileSystemItem item = row.getItem();
-
-                    if (item.isDirectory()) {
-                        navigateTo(item.getPath());
-                    }
+                    openItem(row.getItem());
                 }
             });
+
             return row;
         });
+
+
+        view.getFileTable().addEventFilter(
+                KeyEvent.KEY_PRESSED,
+                event -> {
+                    if (event.getCode() == KeyCode.ENTER
+                            && !event.isControlDown()
+                            && !event.isAltDown()
+                            && !event.isShiftDown()
+                            && !event.isMetaDown()) {
+
+                        event.consume();
+
+                        List<FileSystemItem> selectedItems =
+                                view.getSelectedItems();
+
+                        if (selectedItems.size() == 1) {
+                            openItem(selectedItems.getFirst());
+                        }
+                    }
+                }
+        );
     }
 
 
@@ -317,6 +343,27 @@ public class FilePanelController {
 
     public Path getCurrentDirectory() {
         return currentDirectory;
+    }
+
+    public void setOnFileOpen(
+            Consumer<FileSystemItem> onFileOpen
+    ) {
+        this.onFileOpen = Objects.requireNonNull(
+                onFileOpen,
+                "Обробник відкриття файлу не може бути null."
+        );
+    }
+
+    public void openItem(FileSystemItem item) {
+        if (item == null) {
+            return;
+        }
+
+        if (item.isDirectory()) {
+            navigateTo(item.getPath());
+        } else {
+            onFileOpen.accept(item);
+        }
     }
 
     public List<FileSystemItem> getSelectedItems() {

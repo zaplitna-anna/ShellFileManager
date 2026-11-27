@@ -1,7 +1,9 @@
 package com.shell;
 
+import com.shell.command.CommandInvoker;
 import com.shell.controller.MainController;
 import com.shell.facade.FileSystemFacade;
+import com.shell.service.FileOperationService;
 import com.shell.service.NavigationService;
 import com.shell.view.MainView;
 
@@ -22,10 +24,23 @@ public class Main extends Application {
         NavigationService navigationService =
                 new NavigationService(fileSystemFacade);
 
+        CommandInvoker commandInvoker =
+                new CommandInvoker();
+
+        FileOperationService fileOperationService =
+                new FileOperationService(
+                        fileSystemFacade,
+                        commandInvoker
+                );
+
         MainView mainView = new MainView();
 
         MainController mainController =
-                new MainController(mainView, navigationService);
+                new MainController(
+                        mainView,
+                        navigationService,
+                        fileOperationService
+                );
 
         Scene scene = new Scene(mainView, 1200, 750);
 
