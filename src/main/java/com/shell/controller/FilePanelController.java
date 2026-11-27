@@ -4,6 +4,10 @@ import com.shell.model.FileSystemItem;
 import com.shell.service.NavigationService;
 import com.shell.view.FilePanelView;
 import com.shell.strategy.sorting.*;
+import com.shell.observer.FileSystemEvent;
+import com.shell.observer.FileSystemObserver;
+
+import javafx.application.Platform;
 
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -24,7 +28,8 @@ import java.util.function.Consumer;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 
-public class FilePanelController {
+public class FilePanelController
+        implements FileSystemObserver {
 
     private final FilePanelView view;
     private final NavigationService navigationService;
@@ -195,16 +200,15 @@ public class FilePanelController {
                 throw new IOException("Шлях до каталогу не вказано.");
             }
 
-            Path normalizedPath = directory
-                    .toAbsolutePath()
-                    .normalize();
+            Path realPath =
+                    navigationService.getRealDirectoryPath(directory);
 
             List<FileSystemItem> items =
                     navigationService.getDirectoryContents(
-                            normalizedPath
+                            realPath
                     );
 
-            currentDirectory = normalizedPath;
+            currentDirectory = realPath;
 
             view.setCurrentPath(currentDirectory);
             view.setItems(
@@ -365,6 +369,127 @@ public class FilePanelController {
             onFileOpen.accept(item);
         }
     }
+
+
+    @Override
+    public void onFileSystemChanged(FileSystemEvent event) {
+        if (Platform.isFxApplicationThread()) {
+            handleFileSystemEvent(event);
+        } else {
+            Platform.runLater(
+                    () -> handleFileSystemEvent(event)
+            );
+        }
+    }
+
+
+    private void handleFileSystemEvent(FileSystemEvent event) {
+        if (currentDirectory == null) {
+            return;
+        }
+
+        switch (event.type()) {
+
+            case CREATE, COPY -> handleDirectoryContentChanged(event);
+
+            case RENAME -> handleRenameEvent(event);
+
+            case DELETE, MOVE -> handleRemoveOrMoveEvent(event);
+        }
+    }
+
+
+    private void handleDirectoryContentChanged(
+            FileSystemEvent event
+    ) {
+        if (currentDirectory.equals(
+                event.destinationDirectory()
+        )) {
+            refresh();
+        }
+    }
+
+
+    private void handleRenameEvent(FileSystemEvent event) {
+        if (event.affectedPaths().isEmpty()
+                || event.newPath() == null) {
+            return;
+        }
+
+        Path oldPath = event.affectedPaths().getFirst();
+        Path newPath = event.newPath();
+
+        if (currentDirectory.startsWith(oldPath)) {
+
+            Path relativePath =
+                    oldPath.relativize(currentDirectory);
+
+            navigateTo(newPath.resolve(relativePath));
+
+        } else if (currentDirectory.equals(
+                event.sourceDirectory()
+        ) || currentDirectory.equals(
+                event.destinationDirectory()
+        )) {
+
+            refresh();
+        }
+    }
+
+
+    private void handleRemoveOrMoveEvent(
+            FileSystemEvent event
+    ) {
+        boolean affected =
+                currentDirectory.equals(
+                        event.sourceDirectory()
+                )
+                        || currentDirectory.equals(
+                        event.destinationDirectory()
+                )
+                        || event.affectedPaths().stream()
+                        .anyMatch(currentDirectory::startsWith);
+
+        if (affected) {
+            refreshOrNavigateToAvailableDirectory();
+        }
+    }
+
+
+    private void refreshOrNavigateToAvailableDirectory() {
+        if (currentDirectory == null) {
+            return;
+        }
+
+        if (navigationService.isAccessibleDirectory(
+                currentDirectory
+        )) {
+            refresh();
+            return;
+        }
+
+        Path availableDirectory =
+                currentDirectory.getParent();
+
+        while (availableDirectory != null) {
+
+            if (navigationService.isAccessibleDirectory(
+                    availableDirectory
+            )) {
+                navigateTo(availableDirectory);
+                return;
+            }
+
+            availableDirectory =
+                    availableDirectory.getParent();
+        }
+
+        showError(
+                "Оновлення файлової панелі",
+                "Не вдалося знайти доступний каталог."
+        );
+    }
+
 
     public List<FileSystemItem> getSelectedItems() {
         return view.getSelectedItems();

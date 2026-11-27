@@ -7,6 +7,7 @@ import com.shell.model.FileSystemItem;
 import com.shell.model.FileSystemItemType;
 import com.shell.service.FileOperationService;
 import com.shell.view.dialog.FileOperationDialogs;
+import com.shell.observer.FileSystemEventPublisher;
 
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -60,7 +61,8 @@ public class MainController {
     public MainController(
             MainView view,
             NavigationService navigationService,
-            FileOperationService fileOperationService
+            FileOperationService fileOperationService,
+            FileSystemEventPublisher eventPublisher
     ) {
         this.view = Objects.requireNonNull(
                 view,
@@ -77,6 +79,11 @@ public class MainController {
                 "Сервіс файлових операцій не може бути null."
         );
 
+        Objects.requireNonNull(
+                eventPublisher,
+                "Видавець подій не може бути null."
+        );
+
         leftController = new FilePanelController(
                 view.getLeftPanel(),
                 this.navigationService
@@ -89,6 +96,9 @@ public class MainController {
 
         leftController.setOnFileOpen(this::handleOpen);
         rightController.setOnFileOpen(this::handleOpen);
+
+        eventPublisher.addObserver(leftController);
+        eventPublisher.addObserver(rightController);
 
         activeController = leftController;
 
@@ -281,8 +291,6 @@ public class MainController {
                             );
                         }
 
-                        refreshAffectedPanels(directory);
-
                         view.setStatus(
                                 "Створено об'єкт: "
                                         + result.name()
@@ -334,12 +342,6 @@ public class MainController {
                         item.getPath(),
                         newName
                 );
-
-                Path oldPath = item.getPath();
-
-                Path newPath = oldPath.resolveSibling(newName);
-
-                updatePanelsAfterRename(oldPath, newPath);
 
                 view.setStatus(
                         "Перейменовано: "
@@ -465,9 +467,6 @@ public class MainController {
                     "Копіювання не завершено. "
                             + "Частину об'єктів могло бути скопійовано."
             );
-
-        } finally {
-            refreshAffectedPanels(destinationDirectory);
         }
     }
 
@@ -573,12 +572,6 @@ public class MainController {
                             + "Частину об'єктів могло бути переміщено."
             );
 
-        } finally {
-            updatePanelsAfterMove(
-                    sourceDirectory,
-                    destinationDirectory,
-                    sourcePaths
-            );
         }
     }
 
@@ -598,9 +591,6 @@ public class MainController {
 
             return;
         }
-
-        Path sourceDirectory =
-                controller.getCurrentDirectory();
 
         List<Path> paths = selectedItems.stream()
                 .map(FileSystemItem::getPath)
@@ -637,11 +627,6 @@ public class MainController {
                             + "Частину об'єктів могло бути видалено."
             );
 
-        } finally {
-            updatePanelsAfterDelete(
-                    sourceDirectory,
-                    paths
-            );
         }
     }
 
@@ -671,190 +656,6 @@ public class MainController {
             );
         }
     }
-
-
-    private void refreshAffectedPanels(Path directory) {
-        if (directory == null) {
-            return;
-        }
-
-        Path normalizedDirectory =
-                directory.toAbsolutePath().normalize();
-
-        if (normalizedDirectory.equals(
-                leftController.getCurrentDirectory()
-        )) {
-            leftController.refresh();
-        }
-
-        if (normalizedDirectory.equals(
-                rightController.getCurrentDirectory()
-        )) {
-            rightController.refresh();
-        }
-    }
-
-    private void updatePanelsAfterRename(
-            Path oldPath,
-            Path newPath
-    ) {
-        updatePanelAfterRename(
-                leftController, oldPath, newPath
-        );
-
-        updatePanelAfterRename(
-                rightController, oldPath, newPath
-        );
-
-        refreshAffectedPanels(oldPath.getParent());
-    }
-
-    private void updatePanelAfterRename(
-            FilePanelController controller,
-            Path oldPath,
-            Path newPath
-    ) {
-        Path currentDirectory =
-                controller.getCurrentDirectory();
-
-        if (currentDirectory == null) {
-            return;
-        }
-
-        if (currentDirectory.startsWith(oldPath)) {
-            Path relativePath =
-                    oldPath.relativize(currentDirectory);
-
-            controller.navigateTo(
-                    newPath.resolve(relativePath)
-            );
-        }
-    }
-
-    private void updatePanelsAfterDelete(
-            Path sourceDirectory,
-            List<Path> requestedPaths
-    ) {
-        updatePanelAfterDelete(
-                leftController,
-                sourceDirectory,
-                requestedPaths
-        );
-
-        updatePanelAfterDelete(
-                rightController,
-                sourceDirectory,
-                requestedPaths
-        );
-    }
-
-
-    private void updatePanelAfterDelete(
-            FilePanelController controller,
-            Path sourceDirectory,
-            List<Path> requestedPaths
-    ) {
-        Path currentDirectory =
-                controller.getCurrentDirectory();
-
-        if (currentDirectory == null) {
-            return;
-        }
-
-        boolean affected =
-                currentDirectory.equals(sourceDirectory)
-                        || requestedPaths.stream()
-                        .anyMatch(currentDirectory::startsWith);
-
-        if (affected) {
-            refreshOrNavigateToAvailableDirectory(controller);
-        }
-    }
-
-    private void updatePanelsAfterMove(
-            Path sourceDirectory,
-            Path destinationDirectory,
-            List<Path> requestedPaths
-    ) {
-        updatePanelAfterMove(
-                leftController,
-                sourceDirectory,
-                destinationDirectory,
-                requestedPaths
-        );
-
-        updatePanelAfterMove(
-                rightController,
-                sourceDirectory,
-                destinationDirectory,
-                requestedPaths
-        );
-    }
-
-    private void updatePanelAfterMove(
-            FilePanelController controller,
-            Path sourceDirectory,
-            Path destinationDirectory,
-            List<Path> requestedPaths
-    ) {
-        Path currentDirectory =
-                controller.getCurrentDirectory();
-
-        if (currentDirectory == null) {
-            return;
-        }
-
-        boolean affected =
-                currentDirectory.equals(sourceDirectory)
-                        || currentDirectory.equals(destinationDirectory)
-                        || requestedPaths.stream()
-                        .anyMatch(currentDirectory::startsWith);
-
-        if (affected) {
-            refreshOrNavigateToAvailableDirectory(controller);
-        }
-    }
-
-
-    private void refreshOrNavigateToAvailableDirectory(
-            FilePanelController controller
-    ) {
-        Path currentDirectory =
-                controller.getCurrentDirectory();
-
-        if (currentDirectory == null) {
-            return;
-        }
-
-        if (navigationService.isAccessibleDirectory(
-                currentDirectory
-        )) {
-            controller.refresh();
-            return;
-        }
-
-        Path availableDirectory =
-                currentDirectory.getParent();
-
-        while (availableDirectory != null) {
-
-            if (navigationService.isAccessibleDirectory(
-                    availableDirectory
-            )) {
-                controller.navigateTo(availableDirectory);
-                return;
-            }
-
-            availableDirectory =
-                    availableDirectory.getParent();
-        }
-
-        showWarning(
-                "Оновлення файлової панелі",
-                "Не вдалося знайти доступний каталог."
-        );
-    }
-
 
     private Window getOwner() {
         return view.getScene() == null

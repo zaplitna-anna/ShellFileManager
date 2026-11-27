@@ -61,6 +61,14 @@ public class NavigationService {
         );
     }
 
+    public Path getRealDirectoryPath(Path directory)
+            throws IOException {
+
+        validateDirectory(directory);
+
+        return fileSystemFacade.getRealPath(directory);
+    }
+
     private void validateDirectory(Path directory)
             throws IOException {
 

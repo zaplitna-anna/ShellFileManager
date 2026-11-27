@@ -3,6 +3,7 @@ package com.shell;
 import com.shell.command.CommandInvoker;
 import com.shell.controller.MainController;
 import com.shell.facade.FileSystemFacade;
+import com.shell.observer.FileSystemEventPublisher;
 import com.shell.service.FileOperationService;
 import com.shell.service.NavigationService;
 import com.shell.view.MainView;
@@ -27,10 +28,14 @@ public class Main extends Application {
         CommandInvoker commandInvoker =
                 new CommandInvoker();
 
+        FileSystemEventPublisher eventPublisher =
+                new FileSystemEventPublisher();
+
         FileOperationService fileOperationService =
                 new FileOperationService(
                         fileSystemFacade,
-                        commandInvoker
+                        commandInvoker,
+                        eventPublisher
                 );
 
         MainView mainView = new MainView();
@@ -39,8 +44,10 @@ public class Main extends Application {
                 new MainController(
                         mainView,
                         navigationService,
-                        fileOperationService
+                        fileOperationService,
+                        eventPublisher
                 );
+
 
         Scene scene = new Scene(mainView, 1200, 750);
 

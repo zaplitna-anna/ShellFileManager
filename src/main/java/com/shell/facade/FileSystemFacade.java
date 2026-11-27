@@ -395,6 +395,11 @@ public class FileSystemFacade {
         );
     }
 
+    public Path getRealPath(Path path) throws IOException {
+        return path.toRealPath();
+    }
+
+
     public Path createFile(
             Path directory,
             String name
