@@ -44,6 +44,23 @@ public class NavigationService {
                 .normalize();
     }
 
+    public boolean isAccessibleDirectory(Path path) {
+        return path != null
+                && fileSystemFacade.isDirectory(path)
+                && fileSystemFacade.isReadable(path);
+    }
+
+    public boolean isSameDirectory(
+            Path firstPath,
+            Path secondPath
+    ) throws IOException {
+
+        return fileSystemFacade.isSameFile(
+                firstPath,
+                secondPath
+        );
+    }
+
     private void validateDirectory(Path directory)
             throws IOException {
 

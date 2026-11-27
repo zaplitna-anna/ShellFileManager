@@ -7,6 +7,8 @@ import com.shell.command.RenameCommand;
 import com.shell.facade.FileSystemFacade;
 import com.shell.command.DeleteCommand;
 import com.shell.command.OpenCommand;
+import com.shell.command.CopyCommand;
+import com.shell.command.MoveCommand;
 
 import java.util.List;
 import java.io.IOException;
@@ -89,6 +91,36 @@ public class FileOperationService {
                 new OpenCommand(
                         fileSystemFacade,
                         path
+                )
+        );
+    }
+
+
+    public void copy(
+            List<Path> sourcePaths,
+            Path destinationDirectory
+    ) throws IOException {
+
+        commandInvoker.executeCommand(
+                new CopyCommand(
+                        fileSystemFacade,
+                        sourcePaths,
+                        destinationDirectory
+                )
+        );
+    }
+
+
+    public void move(
+            List<Path> sourcePaths,
+            Path destinationDirectory
+    ) throws IOException {
+
+        commandInvoker.executeCommand(
+                new MoveCommand(
+                        fileSystemFacade,
+                        sourcePaths,
+                        destinationDirectory
                 )
         );
     }

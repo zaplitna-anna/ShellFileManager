@@ -27,11 +27,12 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.nio.file.Files;
 import java.nio.file.DirectoryNotEmptyException;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javafx.scene.layout.Region;
 
 
 public class MainController {
@@ -42,12 +43,14 @@ public class MainController {
             PseudoClass.getPseudoClass("active");
 
     private final MainView view;
+    private final NavigationService navigationService;
     private final FileOperationService fileOperationService;
 
     private final FilePanelController leftController;
     private final FilePanelController rightController;
 
     private FilePanelController activeController;
+
 
     private final ChangeListener<Node> focusListener =
             (observable, oldNode, newNode) ->
@@ -64,7 +67,7 @@ public class MainController {
                 "Головне представлення не може бути null."
         );
 
-        Objects.requireNonNull(
+        this.navigationService = Objects.requireNonNull(
                 navigationService,
                 "Сервіс навігації не може бути null."
         );
@@ -76,12 +79,12 @@ public class MainController {
 
         leftController = new FilePanelController(
                 view.getLeftPanel(),
-                navigationService
+                this.navigationService
         );
 
         rightController = new FilePanelController(
                 view.getRightPanel(),
-                navigationService
+                this.navigationService
         );
 
         leftController.setOnFileOpen(this::handleOpen);
@@ -177,6 +180,7 @@ public class MainController {
         );
     }
 
+
     private void configureOperationEvents() {
         view.getCreateButton().setOnAction(
                 event -> handleCreate()
@@ -194,6 +198,22 @@ public class MainController {
                 event -> handleRename()
         );
 
+        view.getCopyButton().setOnAction(
+                event -> handleCopy()
+        );
+
+        view.getCopyMenuItem().setOnAction(
+                event -> handleCopy()
+        );
+
+        view.getMoveButton().setOnAction(
+                event -> handleMove()
+        );
+
+        view.getMoveMenuItem().setOnAction(
+                event -> handleMove()
+        );
+
         view.getDeleteButton().setOnAction(
                 event -> handleDelete()
         );
@@ -202,6 +222,7 @@ public class MainController {
                 event -> handleDelete()
         );
     }
+
 
     private void configureKeyboardEvents() {
         view.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
@@ -275,6 +296,10 @@ public class MainController {
                                 "Не вдалося створити об'єкт",
                                 e
                         );
+                        view.setStatus(
+                                "Не вдалося створити об'єкт: "
+                                        + result.name()
+                        );
                     }
                 });
     }
@@ -331,8 +356,230 @@ public class MainController {
                         "Не вдалося перейменувати об'єкт",
                         e
                 );
+                view.setStatus(
+                        "Не вдалося перейменувати об'єкт: "
+                                + item.getName()
+                );
             }
         });
+    }
+
+
+    private void handleCopy() {
+        FilePanelController sourceController =
+                getActiveController();
+
+        FilePanelController destinationController =
+                getPassiveController();
+
+        List<FileSystemItem> selectedItems =
+                sourceController.getSelectedItems();
+
+        if (selectedItems.isEmpty()) {
+            showWarning(
+                    "Копіювання",
+                    "Виберіть файли або каталоги "
+                            + "для копіювання."
+            );
+
+            return;
+        }
+
+        Path sourceDirectory =
+                sourceController.getCurrentDirectory();
+
+        Path destinationDirectory =
+                destinationController.getCurrentDirectory();
+
+        if (sourceDirectory == null
+                || destinationDirectory == null) {
+
+            showWarning(
+                    "Копіювання",
+                    "Не вдалося визначити каталог "
+                            + "джерела або призначення."
+            );
+
+            return;
+        }
+
+        try {
+            if (navigationService.isSameDirectory(
+                    sourceDirectory,
+                    destinationDirectory
+            )) {
+                showWarning(
+                        "Копіювання",
+                        "Каталоги джерела та призначення "
+                                + "збігаються."
+                );
+
+                return;
+            }
+
+        } catch (IOException | SecurityException e) {
+            showOperationError(
+                    "Не вдалося перевірити каталоги",
+                    e
+            );
+
+            return;
+        }
+
+        List<Path> sourcePaths = selectedItems.stream()
+                .map(FileSystemItem::getPath)
+                .toList();
+
+        boolean confirmed =
+                FileOperationDialogs.showCopyConfirmation(
+                        getOwner(),
+                        selectedItems,
+                        destinationDirectory
+                );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            fileOperationService.copy(
+                    sourcePaths,
+                    destinationDirectory
+            );
+
+            view.setStatus(
+                    "Скопійовано об'єктів: "
+                            + sourcePaths.size()
+            );
+
+        } catch (IOException
+                 | SecurityException
+                 | InvalidPathException e) {
+
+            showOperationError(
+                    "Не вдалося завершити копіювання",
+                    e
+            );
+
+            view.setStatus(
+                    "Копіювання не завершено. "
+                            + "Частину об'єктів могло бути скопійовано."
+            );
+
+        } finally {
+            refreshAffectedPanels(destinationDirectory);
+        }
+    }
+
+
+    private void handleMove() {
+        FilePanelController sourceController =
+                getActiveController();
+
+        FilePanelController destinationController =
+                getPassiveController();
+
+        List<FileSystemItem> selectedItems =
+                sourceController.getSelectedItems();
+
+        if (selectedItems.isEmpty()) {
+            showWarning(
+                    "Переміщення",
+                    "Виберіть файли або каталоги "
+                            + "для переміщення."
+            );
+
+            return;
+        }
+
+        Path sourceDirectory =
+                sourceController.getCurrentDirectory();
+
+        Path destinationDirectory =
+                destinationController.getCurrentDirectory();
+
+        if (sourceDirectory == null
+                || destinationDirectory == null) {
+
+            showWarning(
+                    "Переміщення",
+                    "Не вдалося визначити каталог "
+                            + "джерела або призначення."
+            );
+
+            return;
+        }
+
+        try {
+            if (navigationService.isSameDirectory(
+                    sourceDirectory,
+                    destinationDirectory
+            )) {
+                showWarning(
+                        "Переміщення",
+                        "Каталоги джерела та призначення "
+                                + "збігаються."
+                );
+
+                return;
+            }
+
+        } catch (IOException | SecurityException e) {
+            showOperationError(
+                    "Не вдалося перевірити каталоги",
+                    e
+            );
+
+            return;
+        }
+
+        List<Path> sourcePaths = selectedItems.stream()
+                .map(FileSystemItem::getPath)
+                .toList();
+
+        boolean confirmed =
+                FileOperationDialogs.showMoveConfirmation(
+                        getOwner(),
+                        selectedItems,
+                        destinationDirectory
+                );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            fileOperationService.move(
+                    sourcePaths,
+                    destinationDirectory
+            );
+
+            view.setStatus(
+                    "Переміщено об'єктів: "
+                            + sourcePaths.size()
+            );
+
+        } catch (IOException
+                 | SecurityException
+                 | InvalidPathException e) {
+
+            showOperationError(
+                    "Не вдалося завершити переміщення",
+                    e
+            );
+
+            view.setStatus(
+                    "Переміщення не завершено. "
+                            + "Частину об'єктів могло бути переміщено."
+            );
+
+        } finally {
+            updatePanelsAfterMove(
+                    sourceDirectory,
+                    destinationDirectory,
+                    sourcePaths
+            );
+        }
     }
 
 
@@ -514,17 +761,74 @@ public class MainController {
             return;
         }
 
-        boolean affected = currentDirectory.equals(
-                sourceDirectory
-        ) || requestedPaths.stream()
-                .anyMatch(currentDirectory::startsWith);
+        boolean affected =
+                currentDirectory.equals(sourceDirectory)
+                        || requestedPaths.stream()
+                        .anyMatch(currentDirectory::startsWith);
 
-        if (!affected) {
+        if (affected) {
+            refreshOrNavigateToAvailableDirectory(controller);
+        }
+    }
+
+    private void updatePanelsAfterMove(
+            Path sourceDirectory,
+            Path destinationDirectory,
+            List<Path> requestedPaths
+    ) {
+        updatePanelAfterMove(
+                leftController,
+                sourceDirectory,
+                destinationDirectory,
+                requestedPaths
+        );
+
+        updatePanelAfterMove(
+                rightController,
+                sourceDirectory,
+                destinationDirectory,
+                requestedPaths
+        );
+    }
+
+    private void updatePanelAfterMove(
+            FilePanelController controller,
+            Path sourceDirectory,
+            Path destinationDirectory,
+            List<Path> requestedPaths
+    ) {
+        Path currentDirectory =
+                controller.getCurrentDirectory();
+
+        if (currentDirectory == null) {
             return;
         }
 
-        if (Files.isDirectory(currentDirectory)
-                && Files.isReadable(currentDirectory)) {
+        boolean affected =
+                currentDirectory.equals(sourceDirectory)
+                        || currentDirectory.equals(destinationDirectory)
+                        || requestedPaths.stream()
+                        .anyMatch(currentDirectory::startsWith);
+
+        if (affected) {
+            refreshOrNavigateToAvailableDirectory(controller);
+        }
+    }
+
+
+    private void refreshOrNavigateToAvailableDirectory(
+            FilePanelController controller
+    ) {
+        Path currentDirectory =
+                controller.getCurrentDirectory();
+
+        if (currentDirectory == null) {
+            return;
+        }
+
+        if (navigationService.isAccessibleDirectory(
+                currentDirectory
+        )) {
             controller.refresh();
             return;
         }
@@ -533,11 +837,11 @@ public class MainController {
                 currentDirectory.getParent();
 
         while (availableDirectory != null) {
-            if (Files.isDirectory(availableDirectory)
-                    && Files.isReadable(availableDirectory)) {
 
+            if (navigationService.isAccessibleDirectory(
+                    availableDirectory
+            )) {
                 controller.navigateTo(availableDirectory);
-
                 return;
             }
 
@@ -600,10 +904,19 @@ public class MainController {
                     "Не вдалося видалити каталог, "
                             + "оскільки він містить інші об'єкти.";
 
+        } else if (exception instanceof UnsupportedOperationException) {
+            message =
+                    "Ця операція не підтримується "
+                            + "поточною системою.";
+
         } else if (exception instanceof InvalidPathException) {
 
             message =
                     "Вказано недопустиму назву або шлях.";
+        } else if (exception instanceof IllegalArgumentException) {
+            message =
+                    "Вказано некоректні параметри "
+                            + "файлової операції.";
 
         } else if (exception.getClass() == IOException.class
                 && exception.getMessage() != null) {
@@ -637,6 +950,10 @@ public class MainController {
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setContentText(message);
+
+        alert.getDialogPane().setMinHeight(
+                Region.USE_PREF_SIZE
+        );
 
         Window owner = getOwner();
 

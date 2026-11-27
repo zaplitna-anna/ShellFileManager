@@ -13,6 +13,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 import javafx.scene.layout.Region;
 
+import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.List;
@@ -246,6 +247,176 @@ public final class FileOperationDialogs {
 
         return alert.showAndWait()
                 .filter(result -> result == deleteButtonType)
+                .isPresent();
+    }
+
+
+    public static boolean showCopyConfirmation(
+            Window owner,
+            List<FileSystemItem> items,
+            Path destinationDirectory
+    ) {
+        if (items == null || items.isEmpty()
+                || destinationDirectory == null) {
+            return false;
+        }
+
+        Alert alert = new Alert(
+                Alert.AlertType.CONFIRMATION
+        );
+
+        alert.setTitle("Підтвердження копіювання");
+        alert.setHeaderText("Копіювати вибрані об'єкти?");
+
+        ButtonType copyButtonType = new ButtonType(
+                "Копіювати",
+                ButtonBar.ButtonData.OK_DONE
+        );
+
+        ButtonType cancelButtonType = new ButtonType(
+                "Скасувати",
+                ButtonBar.ButtonData.CANCEL_CLOSE
+        );
+
+        alert.getButtonTypes().setAll(
+                copyButtonType,
+                cancelButtonType
+        );
+
+        Label countLabel = new Label(
+                "Вибрано об'єктів: " + items.size()
+        );
+
+        ListView<String> itemList = new ListView<>();
+
+        itemList.getItems().setAll(
+                items.stream()
+                        .map(FileSystemItem::getName)
+                        .toList()
+        );
+
+        itemList.setPrefHeight(
+                Math.min(150, items.size() * 30 + 5)
+        );
+
+        Label destinationLabel = new Label(
+                "Каталог призначення:"
+        );
+
+        Label pathLabel = new Label(
+                destinationDirectory.toString()
+        );
+
+        pathLabel.setWrapText(true);
+        pathLabel.setMaxWidth(Double.MAX_VALUE);
+        pathLabel.setMinHeight(Region.USE_PREF_SIZE);
+
+        VBox content = new VBox(
+                12,
+                countLabel,
+                itemList,
+                destinationLabel,
+                pathLabel
+        );
+
+        content.setPadding(new Insets(10));
+
+        alert.getDialogPane().setContent(content);
+
+        configureDialog(alert, owner);
+
+        return alert.showAndWait()
+                .filter(result -> result == copyButtonType)
+                .isPresent();
+    }
+
+
+    public static boolean showMoveConfirmation(
+            Window owner,
+            List<FileSystemItem> items,
+            Path destinationDirectory
+    ) {
+        if (items == null || items.isEmpty()
+                || destinationDirectory == null) {
+            return false;
+        }
+
+        Alert alert = new Alert(
+                Alert.AlertType.CONFIRMATION
+        );
+
+        alert.setTitle("Підтвердження переміщення");
+        alert.setHeaderText("Перемістити вибрані об'єкти?");
+
+        ButtonType moveButtonType = new ButtonType(
+                "Перемістити",
+                ButtonBar.ButtonData.OK_DONE
+        );
+
+        ButtonType cancelButtonType = new ButtonType(
+                "Скасувати",
+                ButtonBar.ButtonData.CANCEL_CLOSE
+        );
+
+        alert.getButtonTypes().setAll(
+                moveButtonType,
+                cancelButtonType
+        );
+
+        Label countLabel = new Label(
+                "Вибрано об'єктів: " + items.size()
+        );
+
+        ListView<String> itemList = new ListView<>();
+
+        itemList.getItems().setAll(
+                items.stream()
+                        .map(FileSystemItem::getName)
+                        .toList()
+        );
+
+        itemList.setPrefHeight(
+                Math.min(150, items.size() * 30 + 5)
+        );
+
+        Label destinationLabel = new Label(
+                "Каталог призначення:"
+        );
+
+        Label pathLabel = new Label(
+                destinationDirectory.toString()
+        );
+
+        pathLabel.setWrapText(true);
+        pathLabel.setMaxWidth(Double.MAX_VALUE);
+        pathLabel.setMinHeight(Region.USE_PREF_SIZE);
+
+        Label warningLabel = new Label(
+                "Після успішного переміщення об'єкти "
+                        + "буде видалено з початкового каталогу."
+        );
+
+        warningLabel.setWrapText(true);
+        warningLabel.setMaxWidth(Double.MAX_VALUE);
+        warningLabel.setMinHeight(Region.USE_PREF_SIZE);
+
+        VBox content = new VBox(
+                12,
+                countLabel,
+                itemList,
+                destinationLabel,
+                pathLabel,
+                warningLabel
+        );
+
+        content.setPadding(new Insets(10));
+
+        alert.getDialogPane().setContent(content);
+
+        configureDialog(alert, owner);
+
+        return alert.showAndWait()
+                .filter(result -> result == moveButtonType)
                 .isPresent();
     }
 

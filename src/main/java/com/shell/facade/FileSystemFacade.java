@@ -24,6 +24,10 @@ import java.nio.file.NoSuchFileException;
 import java.awt.Desktop;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.FileStore;
 
 public class FileSystemFacade {
 
@@ -152,6 +156,207 @@ public class FileSystemFacade {
     }
 
 
+    public void copy(
+            Path source,
+            Path destinationDirectory
+    ) throws IOException {
+
+        if (source == null || destinationDirectory == null) {
+            throw new IOException(
+                    "Не вказано джерело або каталог призначення."
+            );
+        }
+
+        Path normalizedSource =
+                source.toAbsolutePath().normalize();
+
+        Path normalizedDestination =
+                destinationDirectory.toAbsolutePath().normalize();
+
+        if (normalizedSource.getFileName() == null) {
+            throw new IOException(
+                    "Копіювання кореневого каталогу неможливе."
+            );
+        }
+
+        BasicFileAttributes attributes =
+                Files.readAttributes(
+                        normalizedSource,
+                        BasicFileAttributes.class,
+                        LinkOption.NOFOLLOW_LINKS
+                );
+
+        if (!Files.isDirectory(normalizedDestination)) {
+            throw new IOException(
+                    "Каталог призначення не існує "
+                            + "або не є каталогом."
+            );
+        }
+
+        if (!Files.isReadable(normalizedSource)) {
+            throw new AccessDeniedException(
+                    normalizedSource.toString()
+            );
+        }
+
+        if (!Files.isWritable(normalizedDestination)) {
+            throw new AccessDeniedException(
+                    normalizedDestination.toString()
+            );
+        }
+
+        if (attributes.isSymbolicLink()
+                || attributes.isOther()) {
+            throw new IOException(
+                    "Копіювання спеціальних файлових "
+                            + "об'єктів не підтримується."
+            );
+        }
+
+        Path target = normalizedDestination.resolve(
+                normalizedSource.getFileName()
+        );
+
+        if (attributes.isDirectory()
+                && normalizedDestination.toRealPath()
+                .startsWith(normalizedSource.toRealPath())) {
+
+            throw new IOException(
+                    "Неможливо копіювати каталог "
+                            + "у самого себе або у його підкаталог."
+            );
+        }
+
+        if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+
+            if (!Files.isSymbolicLink(target)
+                    && Files.isSameFile(normalizedSource, target)) {
+
+                throw new IOException(
+                        "Джерело та об'єкт призначення збігаються."
+                );
+            }
+
+            throw new FileAlreadyExistsException(
+                    target.toString()
+            );
+        }
+
+        if (attributes.isDirectory()) {
+            copyDirectoryRecursively(
+                    normalizedSource,
+                    target
+            );
+        } else {
+            Files.copy(
+                    normalizedSource,
+                    target,
+                    StandardCopyOption.COPY_ATTRIBUTES,
+                    LinkOption.NOFOLLOW_LINKS
+            );
+        }
+    }
+
+
+    public void move(
+            Path source,
+            Path destinationDirectory
+    ) throws IOException {
+
+        if (source == null || destinationDirectory == null) {
+            throw new IOException(
+                    "Не вказано джерело або каталог призначення."
+            );
+        }
+
+        Path normalizedSource =
+                source.toAbsolutePath().normalize();
+
+        Path normalizedDestination =
+                destinationDirectory.toAbsolutePath().normalize();
+
+        if (normalizedSource.getFileName() == null) {
+            throw new IOException(
+                    "Переміщення кореневого каталогу неможливе."
+            );
+        }
+
+        BasicFileAttributes attributes =
+                Files.readAttributes(
+                        normalizedSource,
+                        BasicFileAttributes.class,
+                        LinkOption.NOFOLLOW_LINKS
+                );
+
+        if (!Files.isDirectory(normalizedDestination)) {
+            throw new IOException(
+                    "Каталог призначення не існує "
+                            + "або не є каталогом."
+            );
+        }
+
+        if (!Files.isWritable(normalizedDestination)) {
+            throw new AccessDeniedException(
+                    normalizedDestination.toString()
+            );
+        }
+
+        if (attributes.isSymbolicLink()
+                || attributes.isOther()) {
+            throw new IOException(
+                    "Переміщення спеціальних файлових "
+                            + "об'єктів не підтримується."
+            );
+        }
+
+        Path target = normalizedDestination.resolve(
+                normalizedSource.getFileName()
+        );
+
+        if (attributes.isDirectory()
+                && normalizedDestination.toRealPath()
+                .startsWith(normalizedSource.toRealPath())) {
+
+            throw new IOException(
+                    "Неможливо перемістити каталог "
+                            + "у самого себе або у його підкаталог."
+            );
+        }
+
+        if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+
+            if (!Files.isSymbolicLink(target)
+                    && Files.isSameFile(normalizedSource, target)) {
+
+                throw new IOException(
+                        "Джерело та об'єкт призначення збігаються."
+                );
+            }
+
+            throw new FileAlreadyExistsException(
+                    target.toString()
+            );
+        }
+
+        FileStore sourceStore =
+                Files.getFileStore(normalizedSource);
+
+        FileStore destinationStore =
+                Files.getFileStore(normalizedDestination);
+
+        if (sourceStore.equals(destinationStore)) {
+
+            Files.move(normalizedSource, target);
+
+        } else {
+
+            copy(normalizedSource, normalizedDestination);
+
+            delete(normalizedSource);
+        }
+    }
+
+
     private String extractExtension(String name) {
         int dotIndex = name.lastIndexOf('.');
 
@@ -177,6 +382,17 @@ public class FileSystemFacade {
 
     public boolean isWritable(Path path) {
         return Files.isWritable(path);
+    }
+
+    public boolean isSameFile(
+            Path firstPath,
+            Path secondPath
+    ) throws IOException {
+
+        return Files.isSameFile(
+                firstPath,
+                secondPath
+        );
     }
 
     public Path createFile(
@@ -221,6 +437,13 @@ public class FileSystemFacade {
 
         if (normalizedSource.toString().equals(target.toString())) {
             return normalizedSource;
+        }
+
+        if (normalizedSource.equals(target)) {
+            throw new IOException(
+                    "Перейменування лише зі зміною регістру "
+                            + "символів не підтримується."
+            );
         }
 
         return Files.move(normalizedSource, target);
@@ -347,5 +570,96 @@ public class FileSystemFacade {
         );
     }
 
+
+    private void copyDirectoryRecursively(
+            Path source,
+            Path target
+    ) throws IOException {
+
+        Files.walkFileTree(
+                source,
+                new SimpleFileVisitor<Path>() {
+
+                    @Override
+                    public FileVisitResult preVisitDirectory(
+                            Path dir,
+                            BasicFileAttributes attrs
+                    ) throws IOException {
+
+                        Path relativePath =
+                                source.relativize(dir);
+
+                        Path targetDirectory =
+                                target.resolve(relativePath);
+
+                        Files.createDirectory(targetDirectory);
+
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult visitFile(
+                            Path file,
+                            BasicFileAttributes attrs
+                    ) throws IOException {
+
+                        if (!attrs.isRegularFile()) {
+                            throw new IOException(
+                                    "Копіювання спеціального "
+                                            + "файлового об'єкта "
+                                            + "не підтримується: "
+                                            + file
+                            );
+                        }
+
+                        Path relativePath =
+                                source.relativize(file);
+
+                        Path targetFile =
+                                target.resolve(relativePath);
+
+                        Files.copy(
+                                file,
+                                targetFile,
+                                StandardCopyOption.COPY_ATTRIBUTES,
+                                LinkOption.NOFOLLOW_LINKS
+                        );
+
+                        return FileVisitResult.CONTINUE;
+                    }
+
+                    @Override
+                    public FileVisitResult visitFileFailed(
+                            Path file,
+                            IOException exception
+                    ) throws IOException {
+
+                        throw exception;
+                    }
+
+                    @Override
+                    public FileVisitResult postVisitDirectory(
+                            Path dir,
+                            IOException exception
+                    ) throws IOException {
+
+                        if (exception != null) {
+                            throw exception;
+                        }
+
+                        Path targetDirectory = target.resolve(
+                                source.relativize(dir)
+                        );
+
+                        Files.setLastModifiedTime(
+                                targetDirectory,
+                                Files.getLastModifiedTime(dir)
+                        );
+
+                        return FileVisitResult.CONTINUE;
+                    }
+                }
+        );
+    }
 
 }
