@@ -1,32 +1,34 @@
 package com.shell.controller;
 
 import com.shell.model.FileSystemItem;
-import com.shell.service.NavigationService;
-import com.shell.view.FilePanelView;
-import com.shell.strategy.sorting.*;
 import com.shell.observer.FileSystemEvent;
 import com.shell.observer.FileSystemObserver;
-
-import javafx.application.Platform;
-
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.Alert;
-import javafx.scene.control.TableRow;
-import javafx.scene.input.MouseButton;
+import com.shell.service.NavigationService;
+import com.shell.strategy.sorting.DateSortingStrategy;
+import com.shell.strategy.sorting.FileSortingContext;
+import com.shell.strategy.sorting.NameSortingStrategy;
+import com.shell.strategy.sorting.SizeSortingStrategy;
+import com.shell.strategy.sorting.TypeSortingStrategy;
+import com.shell.view.FilePanelView;
 
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.InvalidPathException;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.nio.file.AccessDeniedException;
-import java.nio.file.NoSuchFileException;
-import java.util.ArrayList;
 import java.util.function.Consumer;
 
+import javafx.application.Platform;
+import javafx.scene.control.Alert;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
+import javafx.scene.control.TableView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 
 public class FilePanelController
         implements FileSystemObserver {

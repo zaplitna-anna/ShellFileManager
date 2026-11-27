@@ -8,11 +8,11 @@ import com.shell.service.FileOperationService;
 import com.shell.service.NavigationService;
 import com.shell.view.MainView;
 
+import java.util.Objects;
+
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-
-import java.util.Objects;
 
 public class Main extends Application {
 
@@ -62,6 +62,12 @@ public class Main extends Application {
         stage.setMinWidth(900);
         stage.setMinHeight(600);
         stage.setScene(scene);
+
+        stage.setOnCloseRequest(event -> {
+            if (mainController.isOperationRunning()) {
+                event.consume();
+            }
+        });
 
         stage.show();
 

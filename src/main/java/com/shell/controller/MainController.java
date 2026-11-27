@@ -1,39 +1,44 @@
 package com.shell.controller;
 
+import com.shell.model.FileSystemItem;
+import com.shell.model.FileSystemItemType;
+import com.shell.observer.FileSystemEventPublisher;
+import com.shell.observer.OperationProgressPublisher;
+import com.shell.operation.CancellationToken;
+import com.shell.operation.OperationContext;
+import com.shell.service.FileOperationService;
 import com.shell.service.NavigationService;
 import com.shell.view.FilePanelView;
 import com.shell.view.MainView;
-import com.shell.model.FileSystemItem;
-import com.shell.model.FileSystemItemType;
-import com.shell.service.FileOperationService;
 import com.shell.view.dialog.FileOperationDialogs;
-import com.shell.observer.FileSystemEventPublisher;
+import com.shell.view.dialog.OperationProgressDialog;
 
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.stage.Window;
-import javafx.application.Platform;
-import javafx.css.PseudoClass;
-import javafx.scene.Node;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
-import javafx.beans.value.ChangeListener;
-
-import java.util.Objects;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
 import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.InvalidPathException;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.concurrent.Task;
+import javafx.css.PseudoClass;
+import javafx.scene.Node;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
+import javafx.stage.Window;
 
 
 public class MainController {
@@ -52,11 +57,18 @@ public class MainController {
 
     private FilePanelController activeController;
 
+    private boolean operationRunning;
 
     private final ChangeListener<Node> focusListener =
             (observable, oldNode, newNode) ->
                     updateActivePanelByFocus(newNode);
 
+    @FunctionalInterface
+    private interface FileOperation {
+
+        void execute(OperationContext context)
+                throws IOException;
+    }
 
     public MainController(
             MainView view,
@@ -185,9 +197,11 @@ public class MainController {
     }
 
     private void configureMenuEvents() {
-        view.getExitMenuItem().setOnAction(
-                event -> Platform.exit()
-        );
+        view.getExitMenuItem().setOnAction(event -> {
+            if (!operationRunning) {
+                Platform.exit();
+            }
+        });
     }
 
 
@@ -236,6 +250,10 @@ public class MainController {
 
     private void configureKeyboardEvents() {
         view.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (operationRunning) {
+                event.consume();
+                return;
+            }
 
             if (event.getCode() == KeyCode.TAB
                     && !event.isControlDown()
@@ -260,6 +278,9 @@ public class MainController {
 
 
     private void handleCreate() {
+        if (operationRunning) {
+            return;
+        }
         Path directory =
                 getActiveController().getCurrentDirectory();
 
@@ -314,6 +335,10 @@ public class MainController {
 
 
     private void handleRename() {
+        if (operationRunning) {
+            return;
+        }
+
         List<FileSystemItem> selectedItems =
                 getActiveController().getSelectedItems();
 
@@ -368,6 +393,9 @@ public class MainController {
 
 
     private void handleCopy() {
+        if (operationRunning) {
+            return;
+        }
         FilePanelController sourceController =
                 getActiveController();
 
@@ -439,39 +467,34 @@ public class MainController {
                         destinationDirectory
                 );
 
+
         if (!confirmed) {
             return;
         }
 
-        try {
-            fileOperationService.copy(
-                    sourcePaths,
-                    destinationDirectory
-            );
 
-            view.setStatus(
-                    "Скопійовано об'єктів: "
-                            + sourcePaths.size()
-            );
-
-        } catch (IOException
-                 | SecurityException
-                 | InvalidPathException e) {
-
-            showOperationError(
-                    "Не вдалося завершити копіювання",
-                    e
-            );
-
-            view.setStatus(
-                    "Копіювання не завершено. "
-                            + "Частину об'єктів могло бути скопійовано."
-            );
-        }
+        executeInBackground(
+                context -> fileOperationService.copy(
+                        sourcePaths,
+                        destinationDirectory,
+                        context
+                ),
+                "Копіювання об'єктів",
+                "Виконується копіювання...",
+                "Скопійовано об'єктів: "
+                        + sourcePaths.size(),
+                "Не вдалося завершити копіювання",
+                "Копіювання не завершено. "
+                        + "Частину об'єктів могло бути скопійовано."
+        );
     }
 
 
     private void handleMove() {
+        if (operationRunning) {
+            return;
+        }
+
         FilePanelController sourceController =
                 getActiveController();
 
@@ -547,36 +570,29 @@ public class MainController {
             return;
         }
 
-        try {
-            fileOperationService.move(
-                    sourcePaths,
-                    destinationDirectory
-            );
 
-            view.setStatus(
-                    "Переміщено об'єктів: "
-                            + sourcePaths.size()
-            );
-
-        } catch (IOException
-                 | SecurityException
-                 | InvalidPathException e) {
-
-            showOperationError(
-                    "Не вдалося завершити переміщення",
-                    e
-            );
-
-            view.setStatus(
-                    "Переміщення не завершено. "
-                            + "Частину об'єктів могло бути переміщено."
-            );
-
-        }
+        executeInBackground(
+                context -> fileOperationService.move(
+                        sourcePaths,
+                        destinationDirectory,
+                        context
+                ),
+                "Переміщення об'єктів",
+                "Виконується переміщення...",
+                "Переміщено об'єктів: "
+                        + sourcePaths.size(),
+                "Не вдалося завершити переміщення",
+                "Переміщення не завершено. "
+                        + "Частину об'єктів могло бути переміщено."
+        );
     }
 
 
     private void handleDelete() {
+        if (operationRunning) {
+            return;
+        }
+
         FilePanelController controller =
                 getActiveController();
 
@@ -606,32 +622,27 @@ public class MainController {
             return;
         }
 
-        try {
-            fileOperationService.delete(paths);
 
-            view.setStatus(
-                    "Видалено об'єктів: " + paths.size()
-            );
-
-        } catch (IOException
-                 | SecurityException
-                 | InvalidPathException e) {
-
-            showOperationError(
-                    "Не вдалося завершити видалення",
-                    e
-            );
-
-            view.setStatus(
-                    "Видалення не завершено. "
-                            + "Частину об'єктів могло бути видалено."
-            );
-
-        }
+        executeInBackground(
+                context -> fileOperationService.delete(
+                        paths,
+                        context
+                ),
+                "Видалення об'єктів",
+                "Виконується видалення...",
+                "Видалено об'єктів: "
+                        + paths.size(),
+                "Не вдалося завершити видалення",
+                "Видалення не завершено. "
+                        + "Частину об'єктів могло бути видалено."
+        );
     }
 
 
     private void handleOpen(FileSystemItem item) {
+        if (operationRunning) {
+            return;
+        }
         try {
             fileOperationService.open(item.getPath());
 
@@ -655,6 +666,161 @@ public class MainController {
                             + item.getName()
             );
         }
+    }
+
+
+    private void executeInBackground(
+            FileOperation operation,
+            String operationTitle,
+            String runningMessage,
+            String successMessage,
+            String errorHeader,
+            String failureMessage
+    ) {
+        if (operationRunning) {
+            return;
+        }
+
+        CancellationToken cancellationToken =
+                new CancellationToken();
+
+        OperationProgressPublisher progressPublisher =
+                new OperationProgressPublisher();
+
+        OperationContext context =
+                new OperationContext(
+                        cancellationToken,
+                        progressPublisher
+                );
+
+        OperationProgressDialog progressDialog =
+                new OperationProgressDialog(
+                        getOwner(),
+                        operationTitle,
+                        cancellationToken
+                );
+
+        progressPublisher.addObserver(progressDialog);
+
+        Task<Void> task = new Task<>() {
+
+            @Override
+            protected Void call() throws IOException {
+                operation.execute(context);
+                return null;
+            }
+        };
+
+        task.setOnSucceeded(event -> {
+
+            progressPublisher.removeObserver(
+                    progressDialog
+            );
+
+            progressDialog.close();
+
+            setOperationRunning(false);
+
+            view.setStatus(successMessage);
+        });
+
+        task.setOnFailed(event -> {
+
+            progressPublisher.removeObserver(
+                    progressDialog
+            );
+
+            progressDialog.close();
+
+            setOperationRunning(false);
+
+            Throwable error = task.getException();
+
+            if (error instanceof CancellationException) {
+
+                view.setStatus(
+                        "Операцію скасовано. "
+                                + "Виконані зміни збережено."
+                );
+
+                LOGGER.log(
+                        Level.INFO,
+                        "Файлову операцію скасовано."
+                );
+
+                if (error.getSuppressed().length > 0) {
+                    showWarning(
+                            "Операцію скасовано",
+                            "Не вдалося повністю очистити "
+                                    + "незавершену копію файлу."
+                    );
+                }
+
+                return;
+            }
+
+            if (error instanceof Exception exception) {
+
+                showOperationError(
+                        errorHeader,
+                        exception
+                );
+
+            } else {
+
+                LOGGER.log(
+                        Level.SEVERE,
+                        errorHeader,
+                        error
+                );
+
+                showAlert(
+                        Alert.AlertType.ERROR,
+                        "Помилка",
+                        errorHeader,
+                        "Виникла непередбачена помилка."
+                );
+            }
+
+            view.setStatus(failureMessage);
+        });
+
+        setOperationRunning(true);
+        view.setStatus(runningMessage);
+
+        try {
+            Thread thread = new Thread(
+                    task,
+                    "file-operation-thread"
+            );
+
+            thread.setDaemon(false);
+
+            progressDialog.show();
+            thread.start();
+
+        } catch (RuntimeException exception) {
+
+            progressPublisher.removeObserver(
+                    progressDialog
+            );
+
+            progressDialog.close();
+
+            setOperationRunning(false);
+
+            showOperationError(
+                    errorHeader,
+                    exception
+            );
+
+            view.setStatus(failureMessage);
+        }
+    }
+
+    private void setOperationRunning(boolean running) {
+        operationRunning = running;
+        view.setDisable(running);
     }
 
     private Window getOwner() {
@@ -798,11 +964,13 @@ public class MainController {
                 !leftActive
         );
 
-        view.setStatus(
-                leftActive
-                        ? "Активна панель: ліва"
-                        : "Активна панель: права"
-        );
+        if (!operationRunning) {
+            view.setStatus(
+                    leftActive
+                            ? "Активна панель: ліва"
+                            : "Активна панель: права"
+            );
+        }
     }
 
     private void switchActivePanel() {
@@ -832,5 +1000,9 @@ public class MainController {
         return activeController == leftController
                 ? rightController
                 : leftController;
+    }
+
+    public boolean isOperationRunning() {
+        return operationRunning;
     }
 }

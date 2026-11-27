@@ -1,21 +1,22 @@
 package com.shell.service;
 
 import com.shell.command.CommandInvoker;
-import com.shell.command.CreateFileCommand;
+import com.shell.command.CopyCommand;
 import com.shell.command.CreateDirectoryCommand;
+import com.shell.command.CreateFileCommand;
+import com.shell.command.DeleteCommand;
+import com.shell.command.MoveCommand;
+import com.shell.command.OpenCommand;
 import com.shell.command.RenameCommand;
 import com.shell.facade.FileSystemFacade;
-import com.shell.command.DeleteCommand;
-import com.shell.command.OpenCommand;
-import com.shell.command.CopyCommand;
-import com.shell.command.MoveCommand;
 import com.shell.observer.FileSystemEvent;
-import com.shell.observer.FileSystemEventType;
 import com.shell.observer.FileSystemEventPublisher;
+import com.shell.observer.FileSystemEventType;
+import com.shell.operation.OperationContext;
 
-import java.util.List;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 
 public class FileOperationService {
@@ -123,10 +124,22 @@ public class FileOperationService {
         );
     }
 
+    public void open(Path path) throws IOException {
+        commandInvoker.executeCommand(
+                new OpenCommand(
+                        fileSystemFacade,
+                        path
+                )
+        );
+    }
 
-    public void delete(List<Path> paths) throws IOException {
+    public void delete(
+            List<Path> paths,
+            OperationContext context
+    ) throws IOException {
 
-        List<Path> requestedPaths = List.copyOf(paths);
+        List<Path> requestedPaths =
+                List.copyOf(paths);
 
         Path sourceDirectory = requestedPaths.isEmpty()
                 ? null
@@ -136,7 +149,8 @@ public class FileOperationService {
             commandInvoker.executeCommand(
                     new DeleteCommand(
                             fileSystemFacade,
-                            requestedPaths
+                            requestedPaths,
+                            context
                     )
             );
 
@@ -153,19 +167,10 @@ public class FileOperationService {
         }
     }
 
-    public void open(Path path) throws IOException {
-        commandInvoker.executeCommand(
-                new OpenCommand(
-                        fileSystemFacade,
-                        path
-                )
-        );
-    }
-
-
     public void copy(
             List<Path> sourcePaths,
-            Path destinationDirectory
+            Path destinationDirectory,
+            OperationContext context
     ) throws IOException {
 
         List<Path> requestedPaths =
@@ -180,7 +185,8 @@ public class FileOperationService {
                     new CopyCommand(
                             fileSystemFacade,
                             requestedPaths,
-                            destinationDirectory
+                            destinationDirectory,
+                            context
                     )
             );
 
@@ -197,10 +203,10 @@ public class FileOperationService {
         }
     }
 
-
     public void move(
             List<Path> sourcePaths,
-            Path destinationDirectory
+            Path destinationDirectory,
+            OperationContext context
     ) throws IOException {
 
         List<Path> requestedPaths =
@@ -215,7 +221,8 @@ public class FileOperationService {
                     new MoveCommand(
                             fileSystemFacade,
                             requestedPaths,
-                            destinationDirectory
+                            destinationDirectory,
+                            context
                     )
             );
 
