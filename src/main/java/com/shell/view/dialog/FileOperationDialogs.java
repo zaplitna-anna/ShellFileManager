@@ -205,6 +205,8 @@ public final class FileOperationDialogs {
                 Math.min(150, items.size() * 30 + 5)
         );
 
+        itemList.setMinHeight(Region.USE_PREF_SIZE);
+
         Label countLabel = new Label(
                 "Вибрано об'єктів: " + items.size()
         );
