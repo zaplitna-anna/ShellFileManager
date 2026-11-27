@@ -57,6 +57,7 @@ public class WorkloadCalculator {
         );
     }
 
+
     public OperationWorkload calculateMoveWorkload(
             List<Path> sourcePaths,
             Path destinationDirectory,
@@ -83,6 +84,7 @@ public class WorkloadCalculator {
         FileStore destinationStore =
                 Files.getFileStore(destinationDirectory);
 
+        long totalBytes = 0;
         long totalItems = 0;
 
         for (Path source : sourcePaths) {
@@ -95,21 +97,25 @@ public class WorkloadCalculator {
 
             if (sourceStore.equals(destinationStore)) {
                 totalItems++;
+
             } else {
                 OperationWorkload workload =
                         calculatePathWorkload(
                                 source,
                                 context
                         );
+
+                totalBytes += workload.totalBytes();
                 totalItems += workload.totalItems() * 2;
             }
         }
 
         return new OperationWorkload(
-                0,
+                totalBytes,
                 totalItems
         );
     }
+
 
     private OperationWorkload calculatePathWorkload(
             Path path,

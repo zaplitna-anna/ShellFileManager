@@ -57,6 +57,12 @@ public class MoveCommand implements FileCommand {
         try {
             context.checkCancellation();
 
+            fileSystemFacade.validateTransfer(
+                    sourcePaths,
+                    destinationDirectory,
+                    context
+            );
+
             OperationWorkload workload =
                     fileSystemFacade.calculateMoveWorkload(
                             sourcePaths,
@@ -66,8 +72,17 @@ public class MoveCommand implements FileCommand {
 
             context.checkCancellation();
 
+            if (workload.totalBytes() > 0) {
+                fileSystemFacade.validateFreeSpace(
+                        destinationDirectory,
+                        workload.totalBytes()
+                );
+            }
+
+            context.checkCancellation();
+
             context.setTotalWork(
-                    workload.totalBytes(),
+                    0,
                     workload.totalItems()
             );
 
@@ -86,6 +101,7 @@ public class MoveCommand implements FileCommand {
             context.publishFinalProgress();
         }
     }
+
 
     @Override
     public String getDescription() {

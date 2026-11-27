@@ -186,4 +186,30 @@ public class FileSystemFacade {
         return workloadCalculator.calculateMoveWorkload(sourcePaths, destinationDirectory, context);
     }
 
+
+    public void validateTransfer(
+            List<Path> sourcePaths,
+            Path destinationDirectory,
+            OperationContext context
+    ) throws IOException {
+
+        transferHandler.validateTransfer(
+                sourcePaths,
+                destinationDirectory,
+                context
+        );
+    }
+
+    public void validateFreeSpace(
+            Path destinationDirectory,
+            long requiredBytes
+    ) throws IOException {
+
+        transferHandler.validateFreeSpace(
+                destinationDirectory,
+                requiredBytes
+        );
+    }
+
+
 }

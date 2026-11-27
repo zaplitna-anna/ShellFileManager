@@ -18,6 +18,8 @@ import java.nio.file.FileStore;
 import java.nio.file.StandardOpenOption;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.List;
+import java.nio.file.NoSuchFileException;
 
 public class FileTransferHandler {
 
@@ -39,6 +41,157 @@ public class FileTransferHandler {
                 writer, "Компонент запису файлової системи не може бути null."
         );
     }
+
+
+    public void validateTransfer(
+            List<Path> sourcePaths,
+            Path destinationDirectory,
+            OperationContext context
+    ) throws IOException {
+
+        Objects.requireNonNull(
+                sourcePaths,
+                "Список шляхів не може бути null."
+        );
+
+        Objects.requireNonNull(
+                context,
+                "Контекст операції не може бути null."
+        );
+
+        context.checkCancellation();
+
+        if (sourcePaths.isEmpty()) {
+            throw new IOException(
+                    "Не вибрано об'єкти для виконання операції."
+            );
+        }
+
+        if (destinationDirectory == null) {
+            throw new IOException(
+                    "Не визначено каталог призначення."
+            );
+        }
+
+        Path destination = destinationDirectory
+                .toAbsolutePath()
+                .normalize();
+
+        if (!Files.isDirectory(destination)) {
+            throw new IOException(
+                    "Каталог призначення не існує "
+                            + "або не є каталогом."
+            );
+        }
+
+        if (!Files.isWritable(destination)) {
+            throw new AccessDeniedException(
+                    destination.toString()
+            );
+        }
+
+        Path realDestination = destination.toRealPath();
+
+        for (Path source : sourcePaths) {
+            context.checkCancellation();
+            Path normalizedSource =
+                    source.toAbsolutePath().normalize();
+
+            context.setCurrentPath(normalizedSource);
+
+            if (normalizedSource.getParent() == null) {
+                throw new IOException(
+                        "Операції з кореневими каталогами "
+                                + "не підтримуються."
+                );
+            }
+
+            BasicFileAttributes attributes =
+                    Files.readAttributes(
+                            normalizedSource,
+                            BasicFileAttributes.class,
+                            LinkOption.NOFOLLOW_LINKS
+                    );
+
+            if (!attributes.isDirectory()
+                    && !attributes.isRegularFile()) {
+
+                throw new IOException(
+                        "Обробка спеціальних об'єктів "
+                                + "не підтримується."
+                );
+            }
+
+            if (!Files.isReadable(normalizedSource)) {
+                throw new AccessDeniedException(
+                        normalizedSource.toString()
+                );
+            }
+
+            if (attributes.isDirectory()) {
+
+                validator.validateRegularDirectory(
+                        normalizedSource
+                );
+
+                if (realDestination.startsWith(
+                        normalizedSource.toRealPath()
+                )) {
+                    throw new IOException(
+                            "Неможливо виконати операцію "
+                                    + "з каталогом усередині "
+                                    + "самого себе або його підкаталогу."
+                    );
+                }
+            }
+
+            Path target = destination.resolve(
+                    normalizedSource.getFileName()
+            );
+
+            try {
+                Files.readAttributes(
+                        target,
+                        BasicFileAttributes.class,
+                        LinkOption.NOFOLLOW_LINKS
+                );
+
+                throw new FileAlreadyExistsException(
+                        target.toString()
+                );
+
+            } catch (NoSuchFileException exception) {
+            }
+        }
+    }
+
+
+    public void validateFreeSpace(
+            Path destinationDirectory,
+            long requiredBytes
+    ) throws IOException {
+
+        if (requiredBytes < 0) {
+            throw new IllegalArgumentException(
+                    "Необхідний обсяг вільного місця "
+                            + "не може бути від'ємним."
+            );
+        }
+
+        FileStore destinationStore =
+                Files.getFileStore(destinationDirectory);
+
+        long availableBytes =
+                destinationStore.getUsableSpace();
+
+        if (requiredBytes > availableBytes) {
+            throw new IOException(
+                    "Недостатньо вільного місця "
+                            + "на диску призначення."
+            );
+        }
+    }
+
 
     public void copy(
             Path source,

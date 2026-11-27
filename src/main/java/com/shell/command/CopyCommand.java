@@ -57,11 +57,24 @@ public class CopyCommand implements FileCommand {
         try {
             context.checkCancellation();
 
+            fileSystemFacade.validateTransfer(
+                    sourcePaths,
+                    destinationDirectory,
+                    context
+            );
+
             OperationWorkload workload =
                     fileSystemFacade.calculateWorkload(
                             sourcePaths,
                             context
                     );
+
+            context.checkCancellation();
+
+            fileSystemFacade.validateFreeSpace(
+                    destinationDirectory,
+                    workload.totalBytes()
+            );
 
             context.checkCancellation();
 
@@ -85,6 +98,7 @@ public class CopyCommand implements FileCommand {
             context.publishFinalProgress();
         }
     }
+
 
     @Override
     public String getDescription() {
