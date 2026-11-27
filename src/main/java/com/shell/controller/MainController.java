@@ -30,6 +30,8 @@ public class MainController {
     private final BackgroundOperationExecutor executor;
     private final FileOperationController fileOperationController;
     private final SearchController searchController;
+    private final OperationHistoryController
+            operationHistoryController;
     private FilePanelController activeController;
 
     private final ChangeListener<Node> focusListener =
@@ -77,6 +79,12 @@ public class MainController {
                 this::getActiveController,
                 this::getOwner
         );
+        operationHistoryController =
+                new OperationHistoryController(
+                        fileOperationService,
+                        this::getOwner,
+                        alerts
+                );
 
         leftController.setOnFileOpen(fileOperationController::handleOpen);
         rightController.setOnFileOpen(fileOperationController::handleOpen);
@@ -166,13 +174,26 @@ public class MainController {
         return false;
     }
 
+
     private void configureMenuEvents() {
+
         view.getExitMenuItem().setOnAction(event -> {
             if (!isOperationRunning()) {
                 Platform.exit();
             }
         });
+
+        view.getOperationHistoryMenuItem()
+                .setOnAction(event -> {
+
+                    if (!isOperationRunning()) {
+
+                        operationHistoryController
+                                .handleOperationHistory();
+                    }
+                });
     }
+
 
     private void configureOperationEvents() {
         view.getCreateButton().setOnAction(

@@ -2,30 +2,27 @@ package com.shell;
 
 import com.shell.command.CommandInvoker;
 import com.shell.controller.MainController;
+import com.shell.database.DatabaseManager;
+import com.shell.database.OperationHistoryRepository;
+import com.shell.database.SearchHistoryRepository;
 import com.shell.facade.FileSystemFacade;
 import com.shell.observer.FileSystemEventPublisher;
 import com.shell.service.FileOperationService;
 import com.shell.service.NavigationService;
-import com.shell.view.MainView;
-
-import java.util.Objects;
-
-import javafx.application.Application;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
-
 import com.shell.service.SearchService;
-import com.shell.database.DatabaseManager;
+import com.shell.view.MainView;
 import com.shell.view.dialog.AlertDialogs;
-
-import javafx.scene.control.Alert;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.shell.database.SearchHistoryRepository;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.stage.Stage;
 
 public class Main extends Application {
     private static final Logger LOGGER =
@@ -81,11 +78,17 @@ public class Main extends Application {
         FileSystemEventPublisher eventPublisher =
                 new FileSystemEventPublisher();
 
+        OperationHistoryRepository operationHistoryRepository =
+                new OperationHistoryRepository(
+                        databaseManager
+                );
+
         FileOperationService fileOperationService =
                 new FileOperationService(
                         fileSystemFacade,
                         commandInvoker,
-                        eventPublisher
+                        eventPublisher,
+                        operationHistoryRepository
                 );
 
         SearchHistoryRepository searchHistoryRepository =

@@ -3,23 +3,23 @@ package com.shell.filesystem;
 import com.shell.operation.OperationContext;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.LinkOption;
-import java.nio.file.FileVisitResult;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Objects;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileStore;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.List;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.List;
-import java.nio.file.NoSuchFileException;
 
 public class FileTransferHandler {
 
@@ -431,6 +431,8 @@ public class FileTransferHandler {
 
         if (sourceStore.equals(destinationStore)) {
             Files.move(normalizedSource, target);
+
+            context.markFileSystemChanged();
             context.addProcessedItems(1);
 
         } else {
@@ -494,6 +496,7 @@ public class FileTransferHandler {
                                 target.resolve(relativePath);
 
                         Files.createDirectory(targetDirectory);
+                        context.markFileSystemChanged();
 
                         return FileVisitResult.CONTINUE;
                     }
@@ -564,6 +567,7 @@ public class FileTransferHandler {
                         );
 
                         context.setCurrentPath(directory);
+                        context.markFileSystemChanged();
                         context.addProcessedItems(1);
 
                         return FileVisitResult.CONTINUE;
@@ -644,6 +648,8 @@ public class FileTransferHandler {
                 } catch (IOException
                          | SecurityException cleanupException) {
 
+                    context.markFileSystemChanged();
+
                     exception.addSuppressed(cleanupException);
 
                     LOGGER.log(
@@ -659,6 +665,7 @@ public class FileTransferHandler {
             throw exception;
         }
 
+        context.markFileSystemChanged();
         context.addProcessedItems(1);
     }
 }

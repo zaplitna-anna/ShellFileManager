@@ -18,7 +18,7 @@ public class OperationContext {
 
     private long processedItems;
     private long totalItems;
-
+    private boolean fileSystemChanged;
     private Path currentPath;
     private long lastProgressUpdate;
     private boolean progressPublished;
@@ -88,6 +88,14 @@ public class OperationContext {
         processedItems += items;
 
         publishProgress();
+    }
+
+    public void markFileSystemChanged() {
+        fileSystemChanged = true;
+    }
+
+    public boolean hasFileSystemChanges() {
+        return fileSystemChanged;
     }
 
     public void checkCancellation() {

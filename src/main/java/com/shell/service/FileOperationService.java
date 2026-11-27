@@ -5,22 +5,37 @@ import com.shell.command.CopyCommand;
 import com.shell.command.CreateDirectoryCommand;
 import com.shell.command.CreateFileCommand;
 import com.shell.command.DeleteCommand;
+import com.shell.command.FileCommand;
 import com.shell.command.MoveCommand;
 import com.shell.command.OpenCommand;
 import com.shell.command.RenameCommand;
+import com.shell.database.OperationHistoryRepository;
 import com.shell.facade.FileSystemFacade;
+import com.shell.model.OperationHistoryEntry;
+import com.shell.model.OperationStatus;
 import com.shell.observer.FileSystemEvent;
 import com.shell.observer.FileSystemEventPublisher;
 import com.shell.observer.FileSystemEventType;
 import com.shell.operation.OperationContext;
+import com.shell.util.OperationErrorFormatter;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class FileOperationService {
 
+    private static final Logger LOGGER =
+            Logger.getLogger(FileOperationService.class.getName());
+
+    private final OperationHistoryRepository historyRepository;
     private final FileSystemFacade fileSystemFacade;
     private final CommandInvoker commandInvoker;
     private final FileSystemEventPublisher eventPublisher;
@@ -29,8 +44,12 @@ public class FileOperationService {
     public FileOperationService(
             FileSystemFacade fileSystemFacade,
             CommandInvoker commandInvoker,
-            FileSystemEventPublisher eventPublisher
+            FileSystemEventPublisher eventPublisher,
+            OperationHistoryRepository historyRepository
     ) {
+        this.historyRepository = Objects.requireNonNull(historyRepository,
+                "Репозиторій журналу операцій не може бути null.");
+
         this.fileSystemFacade = Objects.requireNonNull(
                 fileSystemFacade,
                 "Фасад файлової системи не може бути null."
@@ -53,8 +72,13 @@ public class FileOperationService {
             String name
     ) throws IOException {
 
-        commandInvoker.executeCommand(
-                new CreateFileCommand(
+        executeLogged(
+                FileSystemEventType.CREATE,
+                null,
+                requestedPath(directory, name),
+                null,
+                "Створено файл.",
+                () -> new CreateFileCommand(
                         fileSystemFacade,
                         directory,
                         name
@@ -78,8 +102,13 @@ public class FileOperationService {
             String name
     ) throws IOException {
 
-        commandInvoker.executeCommand(
-                new CreateDirectoryCommand(
+        executeLogged(
+                FileSystemEventType.CREATE,
+                null,
+                requestedPath(directory, name),
+                null,
+                "Створено каталог.",
+                () -> new CreateDirectoryCommand(
                         fileSystemFacade,
                         directory,
                         name
@@ -103,8 +132,16 @@ public class FileOperationService {
             String newName
     ) throws IOException {
 
-        commandInvoker.executeCommand(
-                new RenameCommand(
+        executeLogged(
+                FileSystemEventType.RENAME,
+                Objects.toString(source, null),
+                requestedPath(
+                        source == null ? null : source.getParent(),
+                        newName
+                ),
+                null,
+                "Об'єкт перейменовано.",
+                () -> new RenameCommand(
                         fileSystemFacade,
                         source,
                         newName
@@ -146,8 +183,13 @@ public class FileOperationService {
                 : requestedPaths.getFirst().getParent();
 
         try {
-            commandInvoker.executeCommand(
-                    new DeleteCommand(
+            executeLogged(
+                    FileSystemEventType.DELETE,
+                    formatPaths(requestedPaths),
+                    null,
+                    context,
+                    "Об'єкти видалено.",
+                    () -> new DeleteCommand(
                             fileSystemFacade,
                             requestedPaths,
                             context
@@ -181,8 +223,13 @@ public class FileOperationService {
                 : requestedPaths.getFirst().getParent();
 
         try {
-            commandInvoker.executeCommand(
-                    new CopyCommand(
+            executeLogged(
+                    FileSystemEventType.COPY,
+                    formatPaths(requestedPaths),
+                    Objects.toString(destinationDirectory, null),
+                    context,
+                    "Об'єкти скопійовано.",
+                    () -> new CopyCommand(
                             fileSystemFacade,
                             requestedPaths,
                             destinationDirectory,
@@ -217,8 +264,13 @@ public class FileOperationService {
                 : requestedPaths.getFirst().getParent();
 
         try {
-            commandInvoker.executeCommand(
-                    new MoveCommand(
+            executeLogged(
+                    FileSystemEventType.MOVE,
+                    formatPaths(requestedPaths),
+                    Objects.toString(destinationDirectory, null),
+                    context,
+                    "Об'єкти переміщено.",
+                    () -> new MoveCommand(
                             fileSystemFacade,
                             requestedPaths,
                             destinationDirectory,
@@ -237,5 +289,69 @@ public class FileOperationService {
                     )
             );
         }
+    }
+
+    public List<OperationHistoryEntry> getOperationHistory() throws SQLException {
+        return historyRepository.findAll();
+    }
+
+    private void executeLogged(
+            FileSystemEventType type,
+            String sourcePath,
+            String destinationPath,
+            OperationContext context,
+            String successMessage,
+            Supplier<FileCommand> commandSupplier
+    ) throws IOException {
+        try {
+            commandInvoker.executeCommand(commandSupplier.get());
+        } catch (IOException | RuntimeException exception) {
+            boolean cancelled = exception instanceof CancellationException;
+            boolean changed = context != null && context.hasFileSystemChanges();
+
+            OperationStatus status = changed ? OperationStatus.PARTIAL
+                    : cancelled ? OperationStatus.CANCELLED : OperationStatus.FAILED;
+
+            String message = cancelled
+                    ? "Операцію скасовано."
+                    : OperationErrorFormatter.format(exception);
+            if (changed) {
+                message += " Частина змін залишилася у файловій системі.";
+            }
+            if (exception.getSuppressed().length > 0) {
+                message += " Виникли додаткові помилки під час завершення операції.";
+            }
+            saveHistory(type, sourcePath, destinationPath, status, message);
+            throw exception;
+        }
+
+        saveHistory(type, sourcePath, destinationPath,
+                OperationStatus.SUCCESS, successMessage);
+    }
+
+    private void saveHistory(FileSystemEventType type, String sourcePath,
+                             String destinationPath, OperationStatus status,
+                             String message) {
+        try {
+            historyRepository.save(type, sourcePath, destinationPath, status, message);
+        } catch (SQLException exception) {
+            LOGGER.log(Level.WARNING,
+                    "Не вдалося зберегти запис журналу файлових операцій.", exception);
+        }
+    }
+
+    private String formatPaths(List<Path> paths) {
+        return paths.stream().map(Path::toString)
+                .collect(Collectors.joining(System.lineSeparator()));
+    }
+
+    // Зберігаємо навіть некоректну введену назву, не створюючи Path до перевірки.
+    private String requestedPath(Path directory, String name) {
+        if (directory == null) {
+            return name;
+        }
+        String base = directory.toString();
+        String separator = directory.getFileSystem().getSeparator();
+        return base + (base.endsWith(separator) ? "" : separator) + name;
     }
 }

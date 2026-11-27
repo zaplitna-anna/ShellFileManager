@@ -3,10 +3,10 @@ package com.shell.filesystem;
 import com.shell.operation.OperationContext;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.LinkOption;
 import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Objects;
@@ -121,6 +121,7 @@ public class FileSystemWriter {
             context.setCurrentPath(normalizedPath);
             context.checkCancellation();
             Files.delete(normalizedPath);
+            context.markFileSystemChanged();
             context.addProcessedItems(1);
         }
     }
@@ -178,7 +179,7 @@ public class FileSystemWriter {
                         context.setCurrentPath(file);
 
                         Files.delete(file);
-
+                        context.markFileSystemChanged();
                         context.addProcessedItems(1);
 
                         return FileVisitResult.CONTINUE;
@@ -209,7 +210,7 @@ public class FileSystemWriter {
                         context.setCurrentPath(dir);
 
                         Files.delete(dir);
-
+                        context.markFileSystemChanged();
                         context.addProcessedItems(1);
 
                         return FileVisitResult.CONTINUE;
