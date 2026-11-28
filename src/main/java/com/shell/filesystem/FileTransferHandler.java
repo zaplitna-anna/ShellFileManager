@@ -106,6 +106,16 @@ public class FileTransferHandler {
                 );
             }
 
+            if (Files.isSameFile(
+                    normalizedSource.getParent(),
+                    realDestination
+            )) {
+                throw new IOException(
+                        "Каталоги джерела та призначення "
+                                + "збігаються."
+                );
+            }
+
             BasicFileAttributes attributes =
                     Files.readAttributes(
                             normalizedSource,
@@ -567,7 +577,6 @@ public class FileTransferHandler {
                         );
 
                         context.setCurrentPath(directory);
-                        context.markFileSystemChanged();
                         context.addProcessedItems(1);
 
                         return FileVisitResult.CONTINUE;

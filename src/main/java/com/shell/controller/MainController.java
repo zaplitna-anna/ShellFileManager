@@ -68,8 +68,10 @@ public class MainController {
                 view, this::getOwner, alerts
         );
         fileOperationController = new FileOperationController(
-                view, navigationService, fileOperationService,
-                executor, alerts,
+                view,
+                fileOperationService,
+                executor,
+                alerts,
                 this::getActiveController,
                 this::getPassiveController,
                 this::getOwner

@@ -19,7 +19,6 @@ import java.util.function.Supplier;
 
 public class FileOperationController {
     private final MainView view;
-    private final NavigationService navigationService;
     private final FileOperationService fileOperationService;
     private final BackgroundOperationExecutor executor;
     private final AlertDialogs alerts;
@@ -29,7 +28,6 @@ public class FileOperationController {
 
     public FileOperationController(
             MainView view,
-            NavigationService navigationService,
             FileOperationService fileOperationService,
             BackgroundOperationExecutor executor,
             AlertDialogs alerts,
@@ -38,7 +36,6 @@ public class FileOperationController {
             Supplier<Window> ownerSupplier
     ) {
         this.view = Objects.requireNonNull(view);
-        this.navigationService = Objects.requireNonNull(navigationService);
         this.fileOperationService = Objects.requireNonNull(fileOperationService);
         this.executor = Objects.requireNonNull(executor);
         this.alerts = Objects.requireNonNull(alerts);
@@ -201,29 +198,6 @@ public class FileOperationController {
             return;
         }
 
-        try {
-            if (navigationService.isSameDirectory(
-                    sourceDirectory,
-                    destinationDirectory
-            )) {
-                alerts.showWarning(
-                        "Копіювання",
-                        "Каталоги джерела та призначення "
-                                + "збігаються."
-                );
-
-                return;
-            }
-
-        } catch (IOException | SecurityException e) {
-            alerts.showOperationError(
-                    "Не вдалося перевірити каталоги",
-                    e
-            );
-
-            return;
-        }
-
         List<Path> sourcePaths = selectedItems.stream()
                 .map(FileSystemItem::getPath)
                 .toList();
@@ -294,29 +268,6 @@ public class FileOperationController {
                     "Переміщення",
                     "Не вдалося визначити каталог "
                             + "джерела або призначення."
-            );
-
-            return;
-        }
-
-        try {
-            if (navigationService.isSameDirectory(
-                    sourceDirectory,
-                    destinationDirectory
-            )) {
-                alerts.showWarning(
-                        "Переміщення",
-                        "Каталоги джерела та призначення "
-                                + "збігаються."
-                );
-
-                return;
-            }
-
-        } catch (IOException | SecurityException e) {
-            alerts.showOperationError(
-                    "Не вдалося перевірити каталоги",
-                    e
             );
 
             return;

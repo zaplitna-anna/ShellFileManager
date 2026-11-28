@@ -2,29 +2,27 @@ package com.shell.filesystem;
 
 import com.shell.model.FileSystemItem;
 import com.shell.model.FileSystemItemType;
+import com.shell.operation.CancellationToken;
+import com.shell.strategy.search.SearchStrategy;
 
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import com.shell.operation.CancellationToken;
-import com.shell.strategy.search.SearchStrategy;
-
-import java.nio.file.AccessDeniedException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.SimpleFileVisitor;
-import java.util.Objects;
 
 public class FileSystemReader {
 
