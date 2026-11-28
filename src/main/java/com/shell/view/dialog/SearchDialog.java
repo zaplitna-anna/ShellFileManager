@@ -1,4 +1,3 @@
-
 package com.shell.view.dialog;
 
 import com.shell.model.FileSystemItem;
@@ -10,6 +9,8 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -23,8 +24,8 @@ public class SearchDialog {
 
     private final Stage stage = new Stage();
 
-    private final TextField queryField =
-            new TextField();
+    private final ComboBox<String> queryField =
+            new ComboBox<>();
 
     private final CheckBox exactMatchCheckBox =
             new CheckBox("Точний збіг назви");
@@ -151,9 +152,10 @@ public class SearchDialog {
                 cancelButton.fire();
             }
         });
-        stage.setOnShown(event ->
-                queryField.requestFocus()
-        );
+        stage.setOnShown(event -> {
+            queryField.getEditor().requestFocus();
+            showPreviousQueries();
+        });
 
         setRunning(false);
     }
@@ -227,13 +229,42 @@ public class SearchDialog {
 
         searchButton.setDefaultButton(true);
 
-        queryField.setOnAction(
-                event -> searchButton.fire()
+        queryField.setEditable(true);
+        queryField.setMaxWidth(Double.MAX_VALUE);
+
+        queryField.getEditor().focusedProperty().addListener(
+                (observable, oldValue, focused) -> {
+                    if (focused) {
+                        showPreviousQueries();
+                    }
+                }
         );
+
+        queryField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ENTER
+                    && !queryField.isShowing()
+                    && !running) {
+                event.consume();
+                searchButton.fire();
+            }
+        });
 
         closeButton.setOnAction(
                 event -> stage.close()
         );
+    }
+
+    private void showPreviousQueries() {
+        if (stage.isShowing() && !running
+                && !queryField.getItems().isEmpty()) {
+            queryField.show();
+        }
+    }
+
+    public void setPreviousQueries(List<String> queries) {
+        String currentQuery = getQuery();
+        queryField.getItems().setAll(queries);
+        setQuery(currentQuery);
     }
 
     private void updateNavigateButton() {
@@ -246,6 +277,9 @@ public class SearchDialog {
 
         this.running = running;
 
+        if (running) {
+            queryField.hide();
+        }
         queryField.setDisable(running);
         exactMatchCheckBox.setDisable(running);
         searchButton.setDisable(running);
@@ -279,7 +313,7 @@ public class SearchDialog {
     }
 
     public String getQuery() {
-        return queryField.getText();
+        return queryField.getEditor().getText();
     }
 
     public SearchMode getSearchMode() {
@@ -290,7 +324,8 @@ public class SearchDialog {
 
 
     public void setQuery(String query) {
-        queryField.setText(query);
+        queryField.setValue(query);
+        queryField.getEditor().setText(query);
     }
 
     public void setSearchMode(SearchMode mode) {

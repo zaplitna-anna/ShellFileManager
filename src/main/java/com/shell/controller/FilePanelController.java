@@ -197,6 +197,10 @@ public class FilePanelController
     }
 
     public void navigateTo(Path directory) {
+        navigateTo(directory, null);
+    }
+
+    private void navigateTo(Path directory, Path targetPath) {
         try {
             if (directory == null) {
                 throw new IOException("Шлях до каталогу не вказано.");
@@ -210,14 +214,40 @@ public class FilePanelController
                             realPath
                     );
 
+            FileSystemItem selectedItem = null;
+
+            if (targetPath != null) {
+                selectedItem = items.stream()
+                        .filter(item -> item.getPath().equals(targetPath))
+                        .findFirst()
+                        .orElse(null);
+
+                if (selectedItem == null) {
+                    showError(
+                            "Перехід до об'єкта",
+                            "Знайдений об'єкт більше не доступний: "
+                                    + targetPath
+                    );
+                    return;
+                }
+            }
+
             currentDirectory = realPath;
-
             view.setCurrentPath(currentDirectory);
-            view.setItems(
-                    sortingContext.sort(items)
-            );
-
+            view.setItems(sortingContext.sort(items));
             updateNavigationControls();
+
+            if (selectedItem != null) {
+                TableView<FileSystemItem> table = view.getFileTable();
+                int index = table.getItems().indexOf(selectedItem);
+
+                if (index >= 0) {
+                    table.getSelectionModel().clearAndSelect(index);
+                    table.getFocusModel().focus(index);
+                    table.scrollTo(index);
+                    table.requestFocus();
+                }
+            }
 
         } catch (AccessDeniedException | SecurityException e) {
             restoreNavigationControls();
@@ -251,52 +281,16 @@ public class FilePanelController
 
 
     public void navigateToItem(Path itemPath) {
-
         if (itemPath == null) {
             return;
         }
 
-        Path normalizedPath =
-                itemPath.toAbsolutePath().normalize();
-
+        Path normalizedPath = itemPath.toAbsolutePath().normalize();
         Path parent = normalizedPath.getParent();
 
-        if (parent == null) {
-            return;
+        if (parent != null) {
+            navigateTo(parent, normalizedPath);
         }
-
-        navigateTo(parent);
-
-        if (!parent.equals(currentDirectory)) {
-            return;
-        }
-
-        TableView<FileSystemItem> table =
-                view.getFileTable();
-
-        table.getSelectionModel().clearSelection();
-
-        for (int index = 0;
-             index < table.getItems().size();
-             index++) {
-
-            FileSystemItem item =
-                    table.getItems().get(index);
-
-            if (item.getPath().equals(normalizedPath)) {
-                table.getSelectionModel().select(index);
-                table.getFocusModel().focus(index);
-                table.scrollTo(index);
-                table.requestFocus();
-                return;
-            }
-        }
-
-        showError(
-                "Перехід до об'єкта",
-                "Знайдений об'єкт більше не доступний: "
-                        + normalizedPath
-        );
     }
 
 

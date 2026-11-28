@@ -4,6 +4,7 @@ import com.shell.model.SearchHistoryEntry;
 import com.shell.model.SearchMode;
 
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -15,6 +16,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
@@ -154,16 +156,21 @@ public class SearchHistoryDialog {
 
         directoryColumn.setPrefWidth(390);
 
-        TableColumn<SearchHistoryEntry, String> dateColumn =
+        TableColumn<SearchHistoryEntry, LocalDateTime> dateColumn =
                 new TableColumn<>("Дата й час");
 
         dateColumn.setCellValueFactory(data ->
-                new ReadOnlyStringWrapper(
-                        data.getValue()
-                                .createdAt()
-                                .format(DATE_FORMATTER)
-                )
+                new ReadOnlyObjectWrapper<>(data.getValue().createdAt())
         );
+
+        dateColumn.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(LocalDateTime date, boolean empty) {
+                super.updateItem(date, empty);
+                setText(empty || date == null
+                        ? null : date.format(DATE_FORMATTER));
+            }
+        });
 
         dateColumn.setPrefWidth(180);
 

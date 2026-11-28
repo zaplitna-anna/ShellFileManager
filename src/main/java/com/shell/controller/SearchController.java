@@ -1,4 +1,3 @@
-
 package com.shell.controller;
 
 import com.shell.model.FileSystemItem;
@@ -115,9 +114,19 @@ public class SearchController {
             FilePanelController panel =
                     activeControllerSupplier.get();
 
+            Path directory = panel.getCurrentDirectory();
+
+            if (directory == null) {
+                showError(
+                        ownerSupplier.get(),
+                        "Не визначено каталог пошуку."
+                );
+                return;
+            }
+
             showSearchDialog(
                     panel,
-                    entry.directory(),
+                    directory,
                     entry.query(),
                     entry.searchMode()
             );
@@ -150,6 +159,7 @@ public class SearchController {
                 directory
         );
 
+        loadPreviousQueries(dialog);
         dialog.setQuery(query);
         dialog.setSearchMode(mode);
 
@@ -204,6 +214,31 @@ public class SearchController {
     }
 
 
+    private void loadPreviousQueries(SearchDialog dialog) {
+        try {
+            List<String> queries = searchService.getSearchHistory()
+                    .stream()
+                    .map(SearchHistoryEntry::query)
+                    .distinct()
+                    .toList();
+
+            dialog.setPreviousQueries(queries);
+
+        } catch (SQLException exception) {
+            LOGGER.log(
+                    Level.WARNING,
+                    "Не вдалося завантажити попередні запити.",
+                    exception
+            );
+            showError(
+                    dialog.getWindow().isShowing()
+                            ? dialog.getWindow() : ownerSupplier.get(),
+                    "Не вдалося завантажити попередні запити. "
+                            + "Новий пошук залишається доступним."
+            );
+        }
+    }
+
     private void startSearch(
             SearchDialog dialog,
             Path directory
@@ -250,15 +285,11 @@ public class SearchController {
 
             finishSearch(dialog);
 
-            if (token.isCancellationRequested()) {
-                dialog.setStatus("Пошук скасовано.");
-                return;
-            }
-
             List<FileSystemItem> results =
                     task.getValue();
 
             dialog.setResults(results);
+            loadPreviousQueries(dialog);
 
             if (results.isEmpty()) {
                 dialog.setStatus(
